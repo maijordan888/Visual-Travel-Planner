@@ -74,5 +74,20 @@ export const useTripStore = create((set, get) => ({
       }
       return n;
     })
+  })),
+
+  // 動作：從 AI 或地圖彈跳視窗新增備選點
+  addOptionToNode: (nodeId, place) => set((state) => ({
+    dailyNodes: state.dailyNodes.map(n => {
+      if(n.id === nodeId) {
+        // 防止重複加入
+        if(n.options.find(o => o.id === place.id)) return n;
+        return {
+          ...n,
+          options: [...n.options, place]
+        };
+      }
+      return n;
+    })
   }))
 }));

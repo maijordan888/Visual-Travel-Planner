@@ -81,14 +81,20 @@ export default function App() {
               time={dayConfig.startTime} 
             />
 
-            {dailyNodes.map((node, i) => (
-               <ItineraryNode 
-                 key={node.id}
-                 nodeData={node}
-                 onOpenModal={() => setIsModalOpen(true)}
-                 isOvertime={hasOvertimeWarning && i === 1} // 模擬超時節點
-               />
-            ))}
+            {dailyNodes.map((node, i) => {
+               // 找出前一個節點的地名用作 AI 推薦上下文
+               const prevPlace = i === 0 ? dayConfig.startLocation : (dailyNodes[i-1].selected_place_name || "上一個景點");
+               const nextPlace = dayConfig.endLocation;
+
+               return (
+                 <ItineraryNode 
+                   key={node.id}
+                   nodeData={node}
+                   onOpenModal={() => setIsModalOpen({ nodeId: node.id, prevPlace, nextPlace })}
+                   isOvertime={hasOvertimeWarning && i === 1} // 模擬超時節點
+                 />
+               )
+            })}
 
             <ItineraryNode 
               isEndEndpoint 
@@ -99,7 +105,17 @@ export default function App() {
         </main>
       </div>
 
-      {isModalOpen && <MapModal onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && (
+        <MapModal 
+          onClose={() => setIsModalOpen(false)} 
+          prevPlace={isModalOpen.prevPlace}
+          nextPlace={isModalOpen.nextPlace}
+          onAddNode={(place) => {
+             useTripStore.getState().addOptionToNode(isModalOpen.nodeId, place);
+             setIsModalOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }

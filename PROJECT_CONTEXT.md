@@ -7,20 +7,26 @@
 
 1. **Phase 1 & 2 (Frontend) - [COMPLETED]**
    - 建立並套用全域 CSS 與 RWD 響應式排版 (玻璃擬態、動態 UI)。
-   - 使用 Zustand 代碼化為 `useTripStore.js` 處理全域狀態（設定每日時間範圍、加入與刪除備選景點、狀態切換）。
-   - 實作防呆警告視覺效果（紅底背景與頂端橫幅）。
-   - 完成單線瀑布流的 `ItineraryNode` 節點 UI 與交通工具變更切換功能。
+   - 使用 Zustand 代碼化為 `useTripStore.js` 處理全域狀態。
+   - 實作防呆警告視覺效果（確保 CSS 疊層與 Z-index 修正）。
+   - 完成單線瀑布流的 `ItineraryNode` 節點 UI 與備選項切換。
 
-2. **Phase 3 (Backend API) - [NEXT STEP PENDING]**
-   - **目標**：接手撰寫後端 API。
-   - **需求**：
-     - 使用 SQLite 作為主邏輯資料庫，建置 `Trips` 與 `Daily_Nodes` 資料表，並將 Google Sheets 退階為純粹匯出功能的備份端點。
-     - 整合 Google Directions API 計算交通時間，並實作 SQLite 緩存與前端傳入的 `force_refresh` 決定是否要打外部 API (`dayConfig.autoUpdate`)。
-     - 整合 Google GenAI 或符合的 LLM，以系統指定的 Prompt 生成順路景點與預估的停留時間 (`durationMins`) 給前台作為備選名單 `options`。
-   - **實作建議**：請查閱 `C:\Users\user\.gemini\antigravity\brain\...` 中的 `implementation_plan.md` 與 `task.md`。或可從這個 Git Repo 中查看 `frontend/src/store/useTripStore.js` 來對齊前端所需的 JSON 資料結構。
+2. **Phase 3 (Backend API) - [COMPLETED]**
+   - 使用 SQLite (`Trips`, `Daily_Nodes`, `Directions_Cache`) 建構資料庫。
+   - 整合 Gemini AI 以 Prompt 生成順路景點與預估停留時間。
+   - 實作 `services.py` 處理推薦與交通時間計算 (快取)。
+
+3. **Phase 4 (Frontend Integration & Maps) - [IN PROGRESS]**
+   - **完成項目**：將 `MapModal.jsx` 與後端 Gemini 生成端點串接，AI 推薦的資料可成功加入 Zustand State (`addOptionToNode`)。
+   - **完成項目**：引入 `@react-google-maps/api` 實裝真實 Google 地圖與 Places Autocomplete。
+   - **⚠️ 待解決/已知坑點 ⚠️**：
+     目前 `@react-google-maps/api` 的 Autocomplete 使用了「舊版 Places API (Legacy)」。Google 對 2025 年後建立的新專案強制鎖定禁用舊版功能。
+     目前已提供兩條路徑供後續開發者選擇（明天待定）：
+       A. 使用隱藏網址強制開通 Legacy Places API 即可跑起預設。
+       B. 改用 `@vis.gl/react-google-maps` 全面升級以應對 Google 新版 Places API (New)。
 
 ## 環境設定 (Environments)
-- **Node.js**: v20+ 
-- **Python**: 3.11+ 
-- Frontend 開發伺服器執行方式：`cd frontend && npm run dev`
-- Backend 將使用 FastAPI，目前 `/backend` 存在舊有檔案，請依照上述原則重構。
+- **Node.js**: v20+ (`frontend/.env` 需設定 `VITE_GOOGLE_MAPS_API_KEY`)
+- **Python**: 3.11+ (`backend/.env` 需設定 `GOOGLE_MAPS_API_KEY`, `GEMINI_API_KEY`)
+- 前端啟動：`cd frontend && npm run dev`
+- 後端啟動：`cd backend && py -3.11 -m uvicorn main:app --reload`

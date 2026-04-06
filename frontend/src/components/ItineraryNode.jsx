@@ -77,16 +77,14 @@ export default function ItineraryNode({
               </div>
 
               {/* 隱藏的備選清單，允許重新展開 */}
-              {options && options.length > 0 && (
-                  <button className="toggle-backups-btn" onClick={() => setIsBackupExpanded(!isBackupExpanded)}>
-                      {isBackupExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} 
-                      {isBackupExpanded ? '收起備選項' : `顯示 ${options.length} 個備選方案 (可切換)`}
-                  </button>
-              )}
+              <button className="toggle-backups-btn" onClick={() => setIsBackupExpanded(!isBackupExpanded)}>
+                  {isBackupExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} 
+                  {isBackupExpanded ? '收起備選項' : (options.length > 0 ? `顯示 ${options.length} 個備選方案 (可切換)` : '新增其他備選方案')}
+              </button>
               
-              {isBackupExpanded && options && options.length > 0 && (
+              {isBackupExpanded && (
                   <div className="backup-list">
-                    {options.map(opt => (
+                    {options && options.map(opt => (
                         <div key={opt.id} className="backup-item">
                             <div className="info">
                                 <span className="name">{opt.name}</span>
@@ -104,6 +102,9 @@ export default function ItineraryNode({
                             </div>
                         </div>
                     ))}
+                    <button className="btn outline full-width add-more" onClick={onOpenModal} style={{ marginTop: '8px' }}>
+                        <Plus size={16} /> 開啟地圖/交由 AI 推薦
+                    </button>
                   </div>
               )}
            </>
