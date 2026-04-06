@@ -1,0 +1,214 @@
+.itinerary-node {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 24px;
+    padding-left: 64px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Endpoint (起終點特殊的樣式) */
+.itinerary-node.endpoint {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding-left: 20px;
+}
+.node-time {
+    font-weight: 700;
+    color: var(--primary);
+    width: 60px;
+}
+.node-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+/* 中間層交通資訊 */
+.transport-layer {
+    margin-bottom: 12px;
+    padding-left: 12px;
+}
+.transport-selector {
+    display: inline-flex;
+    align-items: center;
+    background: white;
+    border-radius: 20px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e5e7eb;
+}
+.icon-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    color: var(--text-muted);
+    transition: 0.2s;
+    display: flex;
+}
+.icon-btn.active {
+    background: var(--primary);
+    color: white;
+}
+.icon-btn:hover:not(.active) {
+    background: #f1f5f9;
+    color: var(--primary);
+}
+.transport-time {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 0 12px;
+    font-weight: 500;
+}
+
+.node-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+.node-card.warning-mode {
+    border-color: var(--warning-text);
+    box-shadow: 0 4px 16px rgba(217, 119, 6, 0.1);
+}
+.node-card.danger-mode {
+    border-color: #ef4444;
+    background: #fef2f2;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2);
+}
+.node-card.pending-mode {
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+}
+.card-header.pending h4 {
+    color: var(--text-muted);
+}
+.backup-item.pending-item {
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.node-dot {
+    position: absolute;
+    left: 45px;
+    top: 54px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--primary);
+    z-index: 2;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.card-header h4 {
+    font-size: 1.2rem;
+    color: var(--text-main);
+}
+.rating {
+    font-weight: 600;
+    color: #fbbf24;
+    font-size: 0.95rem;
+}
+
+.card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.duration-edit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.duration-input {
+    width: 60px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    text-align: center;
+}
+
+.warning-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* 備選方案 */
+.toggle-backups-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed #e5e7eb;
+    width: 100%;
+    justify-content: center;
+}
+.toggle-backups-btn:hover {
+    color: var(--primary);
+}
+
+.backup-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.backup-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
+}
+.backup-item .name {
+    font-weight: 600;
+    display: block;
+    font-size: 0.95rem;
+}
+.backup-item .sub-info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.btn.small {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+.btn.full-width {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+}

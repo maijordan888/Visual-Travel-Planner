@@ -1,0 +1,147 @@
+import { useState } from 'react';
+import { MapPin, Navigation, Car, Bus, Plus, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import './ItineraryNode.css';
+import { useTripStore } from '../store/useTripStore';
+
+export default function ItineraryNode({ 
+    isStartEndpoint, 
+    isEndEndpoint, 
+    nodeTitle, 
+    time, 
+    nodeData,
+    onOpenModal,
+    isOvertime
+}) {
+  const [isBackupExpanded, setIsBackupExpanded] = useState(false);
+  const { updateNode, confirmOption } = useTripStore();
+
+  // 首尾節點
+  if (isStartEndpoint || isEndEndpoint) {
+    return (
+      <div className="itinerary-node endpoint">
+        <div className="node-time">{time}</div>
+        <div className="node-icon endpoint-icon">
+          <MapPin size={20} color="white" />
+        </div>
+        <div className="node-content">
+          <h4 style={{ color: 'var(--text-main)', fontSize: '1.1rem' }}>
+            {isStartEndpoint ? '出發：' : '終點：'} {nodeTitle}
+          </h4>
+        </div>
+      </div>
+    );
+  }
+
+  const { status, selected_place_name, planned_stay_duration, transport_mode, rating, options } = nodeData;
+
+  const handleModeChange = (mode) => updateNode(nodeData.id, { transport_mode: mode });
+  const handleDurationChange = (e) => updateNode(nodeData.id, { planned_stay_duration: Number(e.target.value) });
+
+  return (
+    <div className="itinerary-node animate-slide-down">
+      {/* 交通工具切換區 (預設大眾運輸) */}
+      <div className="transport-layer">
+        <div className="transport-selector">
+          <button className={`icon-btn ${transport_mode === 'driving' ? 'active' : ''}`} onClick={() => handleModeChange('driving')}>
+            <Car size={16} />
+          </button>
+          <button className={`icon-btn ${transport_mode === 'transit' ? 'active' : ''}`} onClick={() => handleModeChange('transit')}>
+            <Bus size={16} />
+          </button>
+          <span className="transport-time">
+            AI 試算時間：{transport_mode === 'driving' ? '35 分鐘' : '55 分鐘'} 
+            {transport_mode === 'transit' && <span style={{fontSize: '0.8rem', color: 'var(--primary)', marginLeft: 8}}>[變更路線]</span>}
+          </span>
+        </div>
+      </div>
+
+      <div className="node-dot"></div>
+      
+      {/* 節點卡片. 若為備選中，外觀顏色可能不同; 若超時則加上 danger mode */}
+      <div className={`node-card ${status === 'pending_options' ? 'pending-mode' : ''} ${isOvertime ? 'danger-mode' : ''}`}>
+        
+        {/* === 已確認狀態 UI === */}
+        {status === 'confirmed' && (
+           <>
+              <div className="card-header">
+                  <h4>{selected_place_name}</h4>
+                  <div className="rating">⭐ {rating}</div>
+              </div>
+              <div className="card-details">
+                  <div className="duration-edit">
+                      <Clock size={16} />
+                      <span>設定停留時間：</span>
+                      <input type="number" value={planned_stay_duration} onChange={handleDurationChange} className="duration-input" />
+                      <span>分鐘</span>
+                  </div>
+              </div>
+
+              {/* 隱藏的備選清單，允許重新展開 */}
+              {options && options.length > 0 && (
+                  <button className="toggle-backups-btn" onClick={() => setIsBackupExpanded(!isBackupExpanded)}>
+                      {isBackupExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} 
+                      {isBackupExpanded ? '收起備選項' : `顯示 ${options.length} 個備選方案 (可切換)`}
+                  </button>
+              )}
+              
+              {isBackupExpanded && options && options.length > 0 && (
+                  <div className="backup-list">
+                    {options.map(opt => (
+                        <div key={opt.id} className="backup-item">
+                            <div className="info">
+                                <span className="name">{opt.name}</span>
+                                <span className="sub-info">AI 預設 {opt.durationMins} 分鐘 | ⭐ {opt.rating}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button className="btn outline small" onClick={() => {
+                                  confirmOption(nodeData.id, opt.id);
+                                  setIsBackupExpanded(false);
+                              }}>切換採用</button>
+                              <button className="btn outline small" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} 
+                               onClick={() => useTripStore.getState().removeOption(nodeData.id, opt.id)}>
+                                移除
+                              </button>
+                            </div>
+                        </div>
+                    ))}
+                  </div>
+              )}
+           </>
+        )}
+
+        {/* === 備選中狀態 UI (Pending Options) === */}
+        {status === 'pending_options' && (
+           <>
+              <div className="card-header pending">
+                  <h4 style={{ color: 'var(--text-muted)' }}>📍 待決定目的地...</h4>
+              </div>
+              <p style={{fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16}}>請從下方備選清單選擇，或呼叫 AI 新增：</p>
+              
+              <div className="backup-list expanded">
+                  {options.map(opt => (
+                      <div key={opt.id} className="backup-item pending-item">
+                          <div className="info">
+                              <span className="name">{opt.name}</span>
+                              <span className="sub-info">AI 預估停留 {opt.durationMins} 分鐘 | ⭐ {opt.rating}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn primary small" onClick={() => confirmOption(nodeData.id, opt.id)}>
+                               確認並建立節點
+                            </button>
+                            <button className="btn outline small" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} 
+                             onClick={() => useTripStore.getState().removeOption(nodeData.id, opt.id)}>
+                              移除
+                            </button>
+                          </div>
+                      </div>
+                  ))}
+                  <button className="btn outline full-width add-more" onClick={onOpenModal}>
+                      <Plus size={16} /> 開啟地圖/交由 AI 推薦
+                  </button>
+              </div>
+           </>
+        )}
+      </div>
+    </div>
+  );
+}
