@@ -1,5 +1,8 @@
 import os
 import json
+import time
+import hashlib
+import requests
 import googlemaps
 from google import genai
 from dotenv import load_dotenv
@@ -32,20 +35,16 @@ def get_directions_time(db: Session, origin: str, destination: str, mode: str = 
     # 2. 如果沒有緩存或強制更新，打 Google API (若無憑證則 mock)
     if not gmaps_client:
         mock_time = 35 if mode == "driving" else 55
-        # 存入緩存
         new_cache = models.DirectionsCache(origin=origin, destination=destination, mode=mode, duration_mins=mock_time)
         db.add(new_cache)
         db.commit()
         return mock_time
 
     try:
-        # P.S. `transit` 模式在 Google Directions 中通常需要 departure_time，此處簡化處理
         directions_result = gmaps_client.directions(origin, destination, mode=mode, language="zh-TW")
         if directions_result:
             duration_sec = directions_result[0]['legs'][0]['duration']['value']
             duration_mins = duration_sec // 60
-            
-            # 存入緩存
             new_cache = models.DirectionsCache(origin=origin, destination=destination, mode=mode, duration_mins=duration_mins)
             db.add(new_cache)
             db.commit()
@@ -62,13 +61,13 @@ LLM_API_KEY = os.getenv("GEMINI_API_KEY")
 ai_client = genai.Client(api_key=LLM_API_KEY) if LLM_API_KEY and LLM_API_KEY != "your_gemini_api_key_here" else None
 
 def recommend_places(prev_place: str, next_place: str, count: int = 3):
-    """利用 Gemini 判斷路徑並推薦順路的景點"""
+    """利用 Gemini 判斷路徑並推薦順路的景點 (舊版，保留相容)"""
     if not ai_client:
         return [
             {"id": "ai1", "name": "防呆測試：松山文創園區", "rating": "4.5", "durationMins": 120, "tag": "Mock：文青必逛、高度順路"},
             {"id": "ai2", "name": "防呆測試：台北 101 觀景台", "rating": "4.6", "durationMins": 90, "tag": "Mock：無縫銜接下午行程"}
         ]
-        
+
     prompt = f"""
     我正在規劃一段旅程，剛離開地點 A：「{prev_place}」，接下來預計前往地點 B：「{next_place}」。
     請推薦 {count} 個評價 4.0 顆星以上且適合安插在 A 到 B 之間「順路」的景點。
@@ -82,17 +81,269 @@ def recommend_places(prev_place: str, next_place: str, count: int = 3):
     
     絕對不要有任何 markdown 標記 (如 ```json) 或是回覆文字，純粹輸出合法 JSON。
     """
-    
+
     try:
         response = ai_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
+            config={
+                "thinking_config": {"thinking_budget": 0},  # 關閉 thinking，避免免費額度超用
+            },
         )
-        
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         data = json.loads(clean_text)
         return data
-        
     except Exception as e:
-        print("AI Recommendation Error:", e)
+        print(f"AI Recommendation Error (gemini-2.5-flash): {e}")
         return []
+
+
+# ================================
+# NEW: Google Places API Nearby Search
+# ================================
+PLACES_API_BASE = "https://places.googleapis.com/v1/places:searchNearby"
+
+# 簡易記憶體快取 (避免重複打同個請求)
+_places_cache: dict = {}
+
+def _cache_key(lat: float, lng: float, radius: int, type_: str, keyword: str, min_rating: float) -> str:
+    raw = f"{lat:.4f}_{lng:.4f}_{radius}_{type_}_{keyword}_{min_rating}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def search_nearby_places(
+    lat: float,
+    lng: float,
+    radius: int = 1000,
+    place_type: str = "tourist_attraction",  # tourist_attraction | restaurant | cafe...
+    keyword: str = "",
+    min_rating: float = 3.5,
+    max_count: int = 10,
+) -> list:
+    """
+    使用 Google Places API (New) SearchNearby 搜尋周邊地點。
+    回傳清單，每筆包含 place_id, name, rating, location, types。
+    """
+    if not MAP_API_KEY:
+        # Mock 資料
+        return _mock_nearby(lat, lng, max_count)
+
+    cache_k = _cache_key(lat, lng, radius, place_type, keyword, min_rating)
+    if cache_k in _places_cache:
+        cached = _places_cache[cache_k]
+        if time.time() - cached["ts"] < 600:  # 10 分鐘快取
+            return cached["data"]
+
+    # 建立 includedTypes — 對應 New Places API 的 type 表
+    type_mapping = {
+        "tourist_attraction": ["tourist_attraction", "national_park", "museum", "amusement_park", "art_gallery"],
+        "restaurant": ["restaurant", "food"],
+        "cafe": ["cafe", "coffee_shop"],
+        "shopping": ["shopping_mall", "market"],
+        "park": ["park", "natural_feature"],
+    }
+    included_types = type_mapping.get(place_type, [place_type])
+
+    # 決定使用哪個 Endpoint
+    # 有 keyword 用 searchText (支援文字模糊搜尋)
+    # 無 keyword 用 searchNearby (支援按類型搜尋)
+    use_text_search = bool(keyword)
+    url = "https://places.googleapis.com/v1/places:searchText" if use_text_search else "https://places.googleapis.com/v1/places:searchNearby"
+
+    payload = {
+        "maxResultCount": 20,
+        "languageCode": "zh-TW"
+    }
+
+    if use_text_search:
+        # Text Search (New)
+        payload["textQuery"] = keyword
+        # 利用附近的 locationBias 來幫助縮小範圍，但不強制
+        payload["locationBias"] = {
+            "circle": {
+                "center": {"latitude": lat, "longitude": lng},
+                "radius": float(radius)
+            }
+        }
+        # 如果使用者有選類型，也可以加入
+        if place_type != "tourist_attraction" or not keyword:
+            payload["includedType"] = included_types[0] # searchText 只支援單一 includedType
+    else:
+        # Nearby Search (New)
+        payload["includedTypes"] = included_types
+        payload["locationRestriction"] = {
+            "circle": {
+                "center": {"latitude": lat, "longitude": lng},
+                "radius": float(radius)
+            }
+        }
+        payload["rankPreference"] = "RATING"
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": MAP_API_KEY,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.types,places.formattedAddress,places.regularOpeningHours,places.photos"
+    }
+
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        places_raw = data.get("places", [])
+
+        result = []
+        for p in places_raw:
+            rating = p.get("rating", 0)
+            if rating < min_rating:
+                continue
+            loc = p.get("location", {})
+            photos = p.get("photos", [])
+            photo_ref = photos[0]["name"] if photos else None
+
+            result.append({
+                "place_id": p.get("id"),
+                "name": p.get("displayName", {}).get("text", "未知地點"),
+                "rating": rating,
+                "user_rating_count": p.get("userRatingCount", 0),
+                "types": p.get("types", []),
+                "address": p.get("formattedAddress", ""),
+                "lat": loc.get("latitude"),
+                "lng": loc.get("longitude"),
+                "photo_ref": photo_ref,
+                "is_open": p.get("regularOpeningHours", {}).get("openNow"),
+            })
+        
+        # 再次排序與篩選
+        result.sort(key=lambda x: (-x["rating"], -x["user_rating_count"]))
+        final = result[:max_count]
+
+
+        _places_cache[cache_k] = {"ts": time.time(), "data": final}
+        return final
+
+    except Exception as e:
+        # 詳細印出錯誤以便偵錯
+        print(f"--- Places API Error Detail ---")
+        print(f"URL: {url}")
+        print(f"Error: {e}")
+        if 'resp' in locals():
+            print(f"Status Code: {resp.status_code}")
+            print(f"Response Body: {resp.text}")
+        print(f"-------------------------------")
+        return _mock_nearby(lat, lng, max_count)
+
+
+def _mock_nearby(lat: float, lng: float, count: int) -> list:
+    """當 API Key 無效時回傳 Mock 資料"""
+    mock_places = [
+        {"place_id": "mock1", "name": "台北 101", "rating": 4.6, "user_rating_count": 50000, "types": ["tourist_attraction"], "address": "台北市信義區信義路五段7號", "lat": 25.0339, "lng": 121.5619, "photo_ref": None, "is_open": True},
+        {"place_id": "mock2", "name": "象山步道", "rating": 4.5, "user_rating_count": 30000, "types": ["park"], "address": "台北市信義區象山", "lat": 25.0283, "lng": 121.5780, "photo_ref": None, "is_open": True},
+        {"place_id": "mock3", "name": "四四南村", "rating": 4.4, "user_rating_count": 15000, "types": ["tourist_attraction"], "address": "台北市信義區松勤街50號", "lat": 25.0336, "lng": 121.5673, "photo_ref": None, "is_open": None},
+        {"place_id": "mock4", "name": "信義誠品", "rating": 4.5, "user_rating_count": 20000, "types": ["shopping_mall"], "address": "台北市信義區松高路11號", "lat": 25.0389, "lng": 121.5682, "photo_ref": None, "is_open": True},
+        {"place_id": "mock5", "name": "饒河夜市", "rating": 4.3, "user_rating_count": 45000, "types": ["market"], "address": "台北市松山區饒河街", "lat": 25.0511, "lng": 121.5774, "photo_ref": None, "is_open": True},
+    ]
+    return mock_places[:count]
+
+
+# ================================
+# NEW: AI Recommend (Option B: 先搜後篩)
+# ================================
+def ai_recommend_places(
+    lat: float,
+    lng: float,
+    radius: int = 1500,
+    place_type: str = "tourist_attraction",
+    user_prompt: str = "",
+    max_recommend: int = 5,
+) -> list:
+    """
+    Option B 模式：
+    1. 先用 Google Places 拉 20 個候選地點
+    2. 把候選清單 + 使用者 Prompt 送給 Gemini
+    3. Gemini 過濾排名，回傳 place_id + tags + reason
+    4. 後端做 Merge，確保有完整的 lat/lng 資訊
+    """
+    # Step 1: 抓 20 個候選
+    candidates = search_nearby_places(lat, lng, radius, place_type, max_count=20, min_rating=3.0)
+
+    if not candidates:
+        return []
+
+    if not ai_client:
+        # 無 AI 時直接回傳 Google 排序結果
+        return [
+            {**c, "tags": ["#高評分", "#順路推薦"], "reason": "Google 高評分景點"}
+            for c in candidates[:max_recommend]
+        ]
+
+    # Step 2: 整理給 Gemini 的候選清單
+    candidate_for_ai = [
+        {
+            "place_id": c["place_id"],
+            "name": c["name"],
+            "rating": c["rating"],
+            "rating_count": c["user_rating_count"],
+            "types": c["types"][:3],  # 只取前 3 個 type
+        }
+        for c in candidates
+    ]
+
+    candidate_json = json.dumps(candidate_for_ai, ensure_ascii=False, indent=2)
+
+    type_label = {"tourist_attraction": "景點", "restaurant": "餐廳", "cafe": "咖啡廳", "park": "公園", "shopping": "購物"}.get(place_type, place_type)
+
+    prompt = f"""你是一位專業的旅遊導遊，精通台灣各地景點與美食。以下是地圖中心附近的候選地點（由 Google 提供）：
+
+{candidate_json}
+
+使用者的需求是：「{user_prompt if user_prompt else '請推薦高評分且值得一訪的' + type_label}」
+行程類型：{type_label}
+
+請從名單中挑選出最符合需求的 {max_recommend} 個地點。按「推薦程度」由高到低排序。
+請為每個地點生成一個推薦理由（15 字以內，繁體中文），以及 2~3 個短標籤（例如：#在地激推、#網美必訪）。
+
+輸出格式必須嚴格遵守以下 JSON 陣列，不要有任何 markdown 或說明文字：
+[
+  {{
+    "place_id": "從原始名單取得的 place_id",
+    "name": "地點名稱",
+    "tags": ["標籤1", "標籤2"],
+    "reason": "推薦理由"
+  }}
+]"""
+
+    try:
+        response = ai_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config={
+                "thinking_config": {"thinking_budget": 0},  # 關閉 thinking，避免免費額度超用
+            },
+        )
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        ai_picks = json.loads(clean_text)
+
+    except Exception as e:
+        print(f"AI Recommend API Error (gemini-2.5-flash): {e}")
+        # Fallback：直接用 Google 排序
+        return [
+            {**c, "tags": ["#Google推薦"], "reason": "高評分景點"}
+            for c in candidates[:max_recommend]
+        ]
+
+    # Step 4: Merge AI 結果與 Google 原始資料（補回 lat/lng/rating 等）
+    candidate_map = {c["place_id"]: c for c in candidates}
+    result = []
+    for ai_place in ai_picks:
+        pid = ai_place.get("place_id")
+        original = candidate_map.get(pid)
+        if not original:
+            continue
+        merged = {
+            **original,
+            "tags": ai_place.get("tags", []),
+            "reason": ai_place.get("reason", ""),
+        }
+        result.append(merged)
+
+    return result
