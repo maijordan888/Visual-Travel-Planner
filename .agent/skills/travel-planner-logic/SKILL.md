@@ -37,6 +37,18 @@
   - `backend/services.py`: 複雜的 AI 處理與 API 調用邏輯。
   - `backend/models.py`: 數據庫 Schema 定義。
 
-## 5. 開發注意事項
-- **Getter 陷阱**: 在 Zustand 中避免使用 `get()` 定義動態計算屬性，應在 Component 層級計算以確保響應式。
-- **Google API**: 搜尋功能高度依賴 `Places API (New)`，調用時需確保 `fetchFields` 包含所需欄位。
+## 5. 已知問題與修復建議 (Known Issues)
+- **天數溢出 Bug**: `setTripDates` 在更新 `startDate/endDate` 時會重算 `diffDays`。若觸發頻率過高或在渲染週期內調用，可能導致側邊欄天數無限增加。建議增加 Debounce 或更嚴格的輸入驗證。
+- **數據持久化缺失**: 目前重新整理頁面會導致狀態遺失。建議在 `useTripStore` 中引入 Zustand 的 `persist` Middleware。
+- **地圖中心同步**: MapModal 開啟時預設中心與目前行程上下文（Context）脫節。應優化 `itineraryCenter` 的初始化邏輯。
+- **搜尋範圍偏差**: 若未指定 Bounds，AI 推薦可能回傳非目標區域的地點（例如東京行程出現台北景點）。需在 API Request 中加入 `locationRestriction`。
+
+## 6. 開發注意事項 (Handover Notes)
+- **狀態更新**: 注意 `nodesByDay` 是以天數為 Key 的物件，操作時需確保 Immutability。
+- **UI 捲動**: 新增節點後應實作自動捲動（Auto-scroll），可利用 `Ref` 與 `scrollIntoView`。
+- **API 欄位**: `Places API (New)` 需明確指定 `fetchFields`，否則會導致資料缺失。
+
+## 7. 測試路徑 (Testing Path)
+1. 確保 `npm run dev` (Frontend) 與 `uvicorn` (Backend) 皆在運行中。
+2. 使用 `Chrome` 或其他現代瀏覽器開啟 `localhost:5173`。
+3. 測試「新建行程」->「新增景點」->「AI 推薦」的完整閉環。
