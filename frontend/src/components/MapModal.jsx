@@ -371,11 +371,13 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
               >
                 <ExplorePanel
                   mapCenter={mapCenter}
+                  onSetCenter={setMapCenter}
                   onAddPlace={(place) => {
                     onAddNode(place);
                   }}
                   onHoverPlace={handleHoverPlace}
                   onPlacesLoaded={(places) => setExploreMarkers(places)}
+                  prevPlace={prevPlace}
                 />
               </div>
             </div>

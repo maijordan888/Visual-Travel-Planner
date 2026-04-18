@@ -116,7 +116,11 @@ export default function PlaceCard({ place, isAiMode = false, onAdd, onHover, isS
         {/* 右側加入按鈕 */}
         <button
           className="add-place-btn"
-          onClick={() => onAdd?.(place)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAdd?.(place);
+          }}
           title="加入行程"
         >
           <Plus size={18} />

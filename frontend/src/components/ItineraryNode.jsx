@@ -65,7 +65,10 @@ export default function ItineraryNode({
            <>
               <div className="card-header">
                   <h4>{selected_place_name}</h4>
-                  <div className="rating">⭐ {rating}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="rating">⭐ {rating}</div>
+                    <button onClick={() => useTripStore.getState().removeNode(nodeData.id)} style={{background: 'transparent', border:'none', cursor:'pointer'}} title="移除此景點">🗑️</button>
+                  </div>
               </div>
               <div className="card-details">
                   <div className="duration-edit">
@@ -115,6 +118,7 @@ export default function ItineraryNode({
            <>
               <div className="card-header pending">
                   <h4 style={{ color: 'var(--text-muted)' }}>📍 待決定目的地...</h4>
+                  <button onClick={() => useTripStore.getState().removeNode(nodeData.id)} style={{background: 'transparent', border:'none', cursor:'pointer'}} title="移除此景點">🗑️</button>
               </div>
               <p style={{fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16}}>請從下方備選清單選擇，或呼叫 AI 新增：</p>
               

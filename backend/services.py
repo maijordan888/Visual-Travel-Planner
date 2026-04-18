@@ -4,6 +4,7 @@ import time
 import hashlib
 import requests
 import googlemaps
+import math
 from google import genai
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
@@ -86,9 +87,6 @@ def recommend_places(prev_place: str, next_place: str, count: int = 3):
         response = ai_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
-            config={
-                "thinking_config": {"thinking_budget": 0},  # 關閉 thinking，避免免費額度超用
-            },
         )
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         data = json.loads(clean_text)
@@ -109,6 +107,18 @@ _places_cache: dict = {}
 def _cache_key(lat: float, lng: float, radius: int, type_: str, keyword: str, min_rating: float) -> str:
     raw = f"{lat:.4f}_{lng:.4f}_{radius}_{type_}_{keyword}_{min_rating}"
     return hashlib.md5(raw.encode()).hexdigest()
+
+def _get_bounding_box(lat: float, lng: float, radius: float):
+    # Earth radius in meters
+    R = 6378137.0
+    dlat = radius / R
+    dlng = radius / (R * math.cos(math.pi * lat / 180.0))
+    dlat_deg = dlat * 180.0 / math.pi
+    dlng_deg = dlng * 180.0 / math.pi
+    return {
+        "low": {"latitude": lat - dlat_deg, "longitude": lng - dlng_deg},
+        "high": {"latitude": lat + dlat_deg, "longitude": lng + dlng_deg}
+    }
 
 
 def search_nearby_places(
@@ -135,14 +145,17 @@ def search_nearby_places(
             return cached["data"]
 
     # 建立 includedTypes — 對應 New Places API 的 type 表
-    type_mapping = {
-        "tourist_attraction": ["tourist_attraction", "national_park", "museum", "amusement_park", "art_gallery"],
-        "restaurant": ["restaurant", "food"],
-        "cafe": ["cafe", "coffee_shop"],
-        "shopping": ["shopping_mall", "market"],
-        "park": ["park", "natural_feature"],
-    }
-    included_types = type_mapping.get(place_type, [place_type])
+    if place_type == "all":
+        included_types = []
+    else:
+        type_mapping = {
+            "tourist_attraction": ["tourist_attraction", "national_park", "museum", "amusement_park", "art_gallery"],
+            "restaurant": ["restaurant"],
+            "cafe": ["cafe", "coffee_shop"],
+            "shopping": ["shopping_mall", "market"],
+            "park": ["park"],
+        }
+        included_types = type_mapping.get(place_type, [place_type])
 
     # 決定使用哪個 Endpoint
     # 有 keyword 用 searchText (支援文字模糊搜尋)
@@ -158,15 +171,12 @@ def search_nearby_places(
     if use_text_search:
         # Text Search (New)
         payload["textQuery"] = keyword
-        # 利用附近的 locationBias 來幫助縮小範圍，但不強制
-        payload["locationBias"] = {
-            "circle": {
-                "center": {"latitude": lat, "longitude": lng},
-                "radius": float(radius)
-            }
+        # 改用 locationRestriction 強制要求地點在範圍內，讓使用者明顯有感 500m/1km 切換
+        payload["locationRestriction"] = {
+            "rectangle": _get_bounding_box(lat, lng, float(radius))
         }
-        # 如果使用者有選類型，也可以加入
-        if place_type != "tourist_attraction" or not keyword:
+        # 無論是否為景點，只要有明確類型就把 type 卡死，讓切換分類有感
+        if included_types:
             payload["includedType"] = included_types[0] # searchText 只支援單一 includedType
     else:
         # Nearby Search (New)
@@ -177,7 +187,7 @@ def search_nearby_places(
                 "radius": float(radius)
             }
         }
-        payload["rankPreference"] = "RATING"
+        payload["rankPreference"] = "POPULARITY"
 
     headers = {
         "Content-Type": "application/json",
@@ -264,7 +274,7 @@ def ai_recommend_places(
     4. 後端做 Merge，確保有完整的 lat/lng 資訊
     """
     # Step 1: 抓 20 個候選
-    candidates = search_nearby_places(lat, lng, radius, place_type, max_count=20, min_rating=3.0)
+    candidates = search_nearby_places(lat, lng, radius, place_type, keyword=user_prompt, max_count=20, min_rating=3.0)
 
     if not candidates:
         return []
@@ -316,9 +326,6 @@ def ai_recommend_places(
         response = ai_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
-            config={
-                "thinking_config": {"thinking_budget": 0},  # 關閉 thinking，避免免費額度超用
-            },
         )
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         ai_picks = json.loads(clean_text)

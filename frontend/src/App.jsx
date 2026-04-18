@@ -5,9 +5,15 @@ import MapModal from './components/MapModal';
 import { useTripStore } from './store/useTripStore';
 
 export default function App() {
-  const { activeDay, setActiveDay, dayConfig, setDayConfig, dailyNodes } = useTripStore();
+  const { 
+    activeDay, setActiveDay, setDayConfig, nodesByDay,
+    tripTitle, setTripTitle, startDate, endDate, setTripDates, createNewTrip, dayConfigs
+  } = useTripStore();
+  const dailyNodes = nodesByDay[activeDay] || [];
+  const dayConfig = dayConfigs[activeDay] || dayConfigs[1];
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const days = [1, 2, 3];
+  const [isEditingTrip, setIsEditingTrip] = useState(false);
+  const days = Object.keys(dayConfigs).map(Number).sort((a,b)=>a-b);
 
   // 模擬超時檢查機制 (此處於前端做一個簡化的運算演示)
   // 若某節點標記為 isWarning = true，整列背景將有變化
@@ -18,8 +24,36 @@ export default function App() {
       <div className="app-container">
         {/* 左方天數導覽 */}
         <aside className="days-sidebar glass-panel">
-          <h2 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Trip to Taipei</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>2026-10-10 ~ 2026-10-12</p>
+          {isEditingTrip ? (
+            <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <input 
+                type="text" 
+                value={tripTitle} 
+                onChange={(e) => setTripTitle(e.target.value)} 
+                style={{ width: '100%', padding: '4px' }}
+              />
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => setTripDates(e.target.value, endDate)} 
+                  style={{ width: '50%', padding: '4px' }}
+                />
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => setTripDates(startDate, e.target.value)} 
+                  style={{ width: '50%', padding: '4px' }}
+                />
+              </div>
+              <button className="btn outline" onClick={() => setIsEditingTrip(false)} style={{ width: '100%', justifyContent: 'center' }}>完成編輯</button>
+            </div>
+          ) : (
+            <div style={{ cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s', ':hover': { background: 'rgba(255,255,255,0.1)' } }} onClick={() => setIsEditingTrip(true)} title="點擊編輯行程資訊">
+              <h2 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>{tripTitle}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>{startDate} ~ {endDate}</p>
+            </div>
+          )}
           
           {days.map(day => (
             <div 
@@ -31,8 +65,18 @@ export default function App() {
             </div>
           ))}
           
-          <button className="btn outline" style={{ marginTop: 'auto', justifyContent: 'center' }}>
+          <button className="btn outline" style={{ marginTop: 'auto', justifyContent: 'center', marginBottom: '8px' }} onClick={() => {
+             const currentEnd = new Date(endDate);
+             currentEnd.setDate(currentEnd.getDate() + 1);
+             setTripDates(startDate, currentEnd.toISOString().split('T')[0]);
+          }}>
             <Plus size={16} /> 新增一天
+          </button>
+          <button className="btn" style={{ justifyContent: 'center', background: 'var(--primary)', color: '#fff' }} onClick={() => {
+             createNewTrip();
+             setIsEditingTrip(true);
+          }}>
+            新建行程
           </button>
         </aside>
 
@@ -75,11 +119,18 @@ export default function App() {
 
             <div className="node-connector"></div>
             
-            <ItineraryNode 
-              isStartEndpoint 
-              nodeTitle={dayConfig.startLocation} 
-              time={dayConfig.startTime} 
-            />
+            <div style={{ position: 'relative' }}>
+              <ItineraryNode 
+                isStartEndpoint 
+                nodeTitle={dayConfig.startLocation} 
+                time={dayConfig.startTime} 
+              />
+              <div style={{ position: 'absolute', bottom: '-20px', left: '20px', zIndex: 10 }}>
+                 <button onClick={() => useTripStore.getState().insertEmptyNode('START')} className="btn small outline" style={{borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)'}} title="新增第一站">
+                   <Plus size={16} />
+                 </button>
+              </div>
+            </div>
 
             {dailyNodes.map((node, i) => {
                // 找出前一個節點的地名用作 AI 推薦上下文
@@ -87,20 +138,28 @@ export default function App() {
                const nextPlace = dayConfig.endLocation;
 
                return (
-                 <ItineraryNode 
-                   key={node.id}
-                   nodeData={node}
-                   onOpenModal={() => setIsModalOpen({ nodeId: node.id, prevPlace, nextPlace })}
-                   isOvertime={hasOvertimeWarning && i === 1} // 模擬超時節點
-                 />
+                 <div key={node.id} style={{ position: 'relative' }}>
+                   <ItineraryNode 
+                     nodeData={node}
+                     onOpenModal={() => setIsModalOpen({ nodeId: node.id, prevPlace, nextPlace })}
+                     isOvertime={hasOvertimeWarning && i === 1} // 模擬超時節點
+                   />
+                   <div style={{ position: 'absolute', bottom: '-40px', left: '44px', zIndex: 10 }}>
+                      <button onClick={() => useTripStore.getState().insertEmptyNode(node.id)} className="btn small outline" style={{borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)'}} title="新增下一站">
+                        <Plus size={16} />
+                      </button>
+                   </div>
+                 </div>
                )
             })}
 
-            <ItineraryNode 
-              isEndEndpoint 
-              nodeTitle={dayConfig.endLocation} 
-              time="22:30" 
-            />
+            <div style={{ marginTop: '24px' }}>
+              <ItineraryNode 
+                isEndEndpoint 
+                nodeTitle={dayConfig.endLocation} 
+                time="22:30" 
+              />
+            </div>
           </section>
         </main>
       </div>

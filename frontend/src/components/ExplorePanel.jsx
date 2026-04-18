@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Search, Sparkles, SlidersHorizontal, MapPin, AlertCircle, Loader2 } from 'lucide-react';
+import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import PlaceCard from './PlaceCard';
 import { api } from '../api';
 import './ExplorePanel.css';
 
 const TYPE_OPTIONS = [
+  { value: 'all', label: '🌟 全部' },
   { value: 'tourist_attraction', label: '🏛 景點' },
   { value: 'restaurant', label: '🍜 餐廳' },
   { value: 'cafe', label: '☕ 咖啡廳' },
@@ -34,12 +36,12 @@ const SUGGESTED_PROMPTS = [
  *   onAddPlace  — callback(place)，加入行程
  *   onHoverPlace — callback(place | null)，觸發地圖 Marker 高亮
  */
-export default function ExplorePanel({ mapCenter, onAddPlace, onHoverPlace, onPlacesLoaded }) {
+export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHoverPlace, onPlacesLoaded, prevPlace }) {
   // Sub-mode: 'google' | 'ai'
   const [subMode, setSubMode] = useState('google');
 
   // 共通篩選
-  const [placeType, setPlaceType] = useState('tourist_attraction');
+  const [placeType, setPlaceType] = useState('all');
   const [radius, setRadius] = useState(1000);
 
   // Google 模式
@@ -55,6 +57,21 @@ export default function ExplorePanel({ mapCenter, onAddPlace, onHoverPlace, onPl
   const [error, setError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState(null);
+  const [isFormCollapsed, setIsFormCollapsed] = useState(false);
+  const placePickerRef = useRef(null);
+
+  const handleCenterChange = async () => {
+    const place = placePickerRef.current?.value;
+    if (!place) return;
+    try {
+      await place.fetchFields({ fields: ['location'] });
+      if (place.location) {
+        onSetCenter?.({ lat: place.location.lat(), lng: place.location.lng() });
+      }
+    } catch (error) {
+      console.error('Failed to zoom to place:', error);
+    }
+  };
 
   const handleSearch = useCallback(async () => {
     if (!mapCenter?.lat || !mapCenter?.lng) {
@@ -93,11 +110,16 @@ export default function ExplorePanel({ mapCenter, onAddPlace, onHoverPlace, onPl
       if (results.length === 0) {
         setError('此區域暫無符合條件的建議，可嘗試調大範圍或更換類型。');
       }
-    } catch (e) {
+      } catch (e) {
       console.error(e);
       setError('搜尋失敗，請確認後端服務是否正常運行。');
     } finally {
       setIsLoading(false);
+      // 如果有結果，將搜尋介面自動壓縮
+      if (places && places.length > 0 || (subMode === 'google' && !error)) {
+          // Delay a bit so user can feel it
+          setTimeout(() => setIsFormCollapsed(true), 100);
+      }
     }
   }, [mapCenter, subMode, placeType, radius, keyword, minRating, userPrompt]);
 
@@ -121,131 +143,158 @@ export default function ExplorePanel({ mapCenter, onAddPlace, onHoverPlace, onPl
 
   return (
     <div className="explore-panel">
-      {/* Sub-mode Toggle */}
-      <div className="sub-mode-toggle">
-        <button
-          className={`sub-mode-btn ${subMode === 'google' ? 'active' : ''}`}
-          onClick={() => setSubMode('google')}
-          id="explore-google-tab"
-        >
-          <Search size={14} />
-          Google 排序
-        </button>
-        <button
-          className={`sub-mode-btn ai ${subMode === 'ai' ? 'active' : ''}`}
-          onClick={() => setSubMode('ai')}
-          id="explore-ai-tab"
-        >
-          <Sparkles size={14} />
-          ✨ AI 推薦
-        </button>
-      </div>
-
-      {/* 共通篩選 */}
-      <div className="filter-row">
-        <div className="filter-group">
-          <label>類型</label>
-          <div className="type-pills">
-            {TYPE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`type-pill ${placeType === opt.value ? 'active' : ''}`}
-                onClick={() => setPlaceType(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="filter-group radius-group">
-          <label>搜尋範圍</label>
-          <div className="radius-pills">
-            {RADIUS_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`radius-pill ${radius === opt.value ? 'active' : ''}`}
-                onClick={() => setRadius(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Google 模式輸入 */}
-      {subMode === 'google' && (
-        <div className="google-inputs">
-          <div className="search-input-wrap">
-            <Search size={15} className="input-icon" />
-            <input
-              id="google-keyword-input"
-              className="explore-input"
-              placeholder="關鍵字（如：拉麵、夜景...）"
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            />
-          </div>
-          <div className="rating-filter">
-            <span>最低星級</span>
-            {[3.0, 3.5, 4.0, 4.5].map(v => (
-              <button
-                key={v}
-                className={`rating-btn ${minRating === v ? 'active' : ''}`}
-                onClick={() => setMinRating(v)}
-              >
-                {v}★
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* AI 模式輸入 */}
-      {subMode === 'ai' && (
-        <div className="ai-inputs">
-          <textarea
-            id="ai-prompt-textarea"
-            className="ai-textarea"
-            placeholder='描述你想要的體驗，例如「適合帶父母去的台菜餐廳」...'
-            value={userPrompt}
-            onChange={e => setUserPrompt(e.target.value)}
-            rows={3}
-          />
-          <div className="suggested-prompts">
-            {SUGGESTED_PROMPTS.map((p, i) => (
-              <button
-                key={i}
-                className="suggested-tag"
-                onClick={() => setUserPrompt(p)}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Search Button */}
-      <button
-        id="explore-search-btn"
-        className={`explore-search-btn ${subMode === 'ai' ? 'ai-btn' : ''}`}
-        onClick={handleSearch}
-        disabled={isLoading}
+      <div 
+        className={`search-form-container ${isFormCollapsed && places.length > 0 ? 'collapsed' : ''}`}
+        onMouseEnter={() => { if (isFormCollapsed && places.length > 0) setIsFormCollapsed(false); }}
       >
-        {isLoading ? (
-          <>
-            <Loader2 size={16} className="spin-icon" />
-            {subMode === 'ai' ? '🧠 Gemini 分析周邊中...' : '搜尋中...'}
-          </>
-        ) : (
-          <>
-            {subMode === 'ai' ? <Sparkles size={16} /> : <Search size={16} />}
-            {subMode === 'ai' ? '生成 AI 推薦' : '搜尋周邊'}
-          </>
+        {isFormCollapsed && places.length > 0 && (
+           <div className="collapsed-indicator" onClick={() => setIsFormCollapsed(false)}>
+             🔍 點擊或游標移入以展開搜尋設定
+           </div>
         )}
-      </button>
+        
+        <div className="search-form-content">
+          {/* Sub-mode Toggle */}
+          <div className="sub-mode-toggle">
+            <button
+              className={`sub-mode-btn ${subMode === 'google' ? 'active' : ''}`}
+              onClick={() => setSubMode('google')}
+              id="explore-google-tab"
+            >
+              <Search size={14} />
+              Google 排序
+            </button>
+            <button
+              className={`sub-mode-btn ai ${subMode === 'ai' ? 'active' : ''}`}
+              onClick={() => setSubMode('ai')}
+              id="explore-ai-tab"
+            >
+              <Sparkles size={14} />
+              ✨ AI 推薦
+            </button>
+          </div>
+
+          {/* 自訂搜尋中心 */}
+          <div className="filter-group" style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '6px', display: 'block' }}>基準點搜尋框 (自訂搜尋中心)</label>
+              <div className="search-box" style={{ background: '#f1f5f9', borderRadius: '8px', padding: '4px 12px', display: 'flex', alignItems: 'center' }}>
+                <Search size={16} color="#6b7280" style={{ marginRight: '8px' }} />
+                <PlacePicker
+                  ref={placePickerRef}
+                  onPlaceChange={handleCenterChange}
+                  placeholder={prevPlace ? `預設附近：${prevPlace}` : "搜尋地點以更改中心點..."}
+                  style={{ width: '100%', border: 'none', background: 'transparent' }}
+                />
+              </div>
+          </div>
+
+          {/* 共通篩選 */}
+          <div className="filter-row">
+            <div className="filter-group">
+              <label>類型</label>
+              <div className="type-pills">
+                {TYPE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`type-pill ${placeType === opt.value ? 'active' : ''}`}
+                    onClick={() => setPlaceType(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="filter-group radius-group">
+              <label>搜尋範圍</label>
+              <div className="radius-pills">
+                {RADIUS_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`radius-pill ${radius === opt.value ? 'active' : ''}`}
+                    onClick={() => setRadius(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Google 模式輸入 */}
+          {subMode === 'google' && (
+            <div className="google-inputs">
+              <div className="search-input-wrap">
+                <Search size={15} className="input-icon" />
+                <input
+                  id="google-keyword-input"
+                  className="explore-input"
+                  placeholder="關鍵字（如：拉麵、夜景...）"
+                  value={keyword}
+                  onChange={e => setKeyword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+              <div className="rating-filter">
+                <span>最低星級</span>
+                {[3.0, 3.5, 4.0, 4.5].map(v => (
+                  <button
+                    key={v}
+                    className={`rating-btn ${minRating === v ? 'active' : ''}`}
+                    onClick={() => setMinRating(v)}
+                  >
+                    {v}★
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI 模式輸入 */}
+          {subMode === 'ai' && (
+            <div className="ai-inputs">
+              <textarea
+                id="ai-prompt-textarea"
+                className="ai-textarea"
+                placeholder='描述你想要的體驗，例如「適合帶父母去的台菜餐廳」...'
+                value={userPrompt}
+                onChange={e => setUserPrompt(e.target.value)}
+                rows={3}
+              />
+              <div className="suggested-prompts">
+                {SUGGESTED_PROMPTS.map((p, i) => (
+                  <button
+                    key={i}
+                    className="suggested-tag"
+                    onClick={() => setUserPrompt(p)}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Search Button */}
+          <button
+            id="explore-search-btn"
+            className={`explore-search-btn ${subMode === 'ai' ? 'ai-btn' : ''}`}
+            onClick={handleSearch}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={16} className="spin-icon" />
+                {subMode === 'ai' ? '🧠 Gemini 分析周邊中...' : '搜尋中...'}
+              </>
+            ) : (
+              <>
+                {subMode === 'ai' ? <Sparkles size={16} /> : <Search size={16} />}
+                {subMode === 'ai' ? '生成 AI 推薦' : '搜尋周邊'}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Results Area */}
       <div className="results-area">

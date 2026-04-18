@@ -1,0 +1,32 @@
+Testing Text Search...
+--- Places API Error Detail ---
+URL: https://places.googleapis.com/v1/places:searchText
+Error: 400 Client Error: Bad Request for url: https://places.googleapis.com/v1/places:searchText
+Status Code: 400
+Response Body: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"circle\" at 'location_restriction': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "location_restriction",
+            "description": "Invalid JSON payload received. Unknown name \"circle\" at 'location_restriction': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+
+-------------------------------
+Result:
+{'place_id': 'mock1', 'name': '台北 101', 'rating': 4.6, 'user_rating_count': 50000, 'types': ['tourist_attraction'], 'address': '台北市信義區信義路五段7號', 'lat': 25.0339, 'lng': 121.5619, 'photo_ref': None, 'is_open': True}
+{'place_id': 'mock2', 'name': '象山步道', 'rating': 4.5, 'user_rating_count': 30000, 'types': ['park'], 'address': '台北市信義區象山', 'lat': 25.0283, 'lng': 121.578, 'photo_ref': None, 'is_open': True}
+{'place_id': 'mock3', 'name': '四四南村', 'rating': 4.4, 'user_rating_count': 15000, 'types': ['tourist_attraction'], 'address': '台北市信義區松勤街50號', 'lat': 25.0336, 'lng': 121.5673, 'photo_ref': None, 'is_open': None}
+{'place_id': 'mock4', 'name': '信義誠品', 'rating': 4.5, 'user_rating_count': 20000, 'types': ['shopping_mall'], 'address': '台北市信義區松高路11號', 'lat': 25.0389, 'lng': 121.5682, 'photo_ref': None, 'is_open': True}
+{'place_id': 'mock5', 'name': '饒河夜市', 'rating': 4.3, 'user_rating_count': 45000, 'types': ['market'], 'address': '台北市松山區饒河街', 'lat': 25.0511, 'lng': 121.5774, 'photo_ref': None, 'is_open': True}
+Done.
