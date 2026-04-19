@@ -244,6 +244,7 @@ export const useTripStore = create(
                   selected_place_name: place.name || place.selected_place_name,
                   planned_stay_duration: place.durationMins || place.planned_stay_duration || 60,
                   rating: place.rating || 0,
+                  photo_url: place.photo_url || n.photo_url || null,
                   options: oldOptions
                 };
               }

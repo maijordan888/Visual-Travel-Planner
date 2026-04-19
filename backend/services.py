@@ -15,13 +15,28 @@ load_dotenv()
 # ================================
 # 設定 Google Maps API
 # ================================
-MAP_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+MAP_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
 gmaps_client = googlemaps.Client(key=MAP_API_KEY) if MAP_API_KEY and MAP_API_KEY != "your_google_maps_api_key_here" else None
 
-def get_directions_time(db: Session, origin: str, destination: str, mode: str = "transit", force_refresh: bool = False) -> int:
-    """呼叫 Google Directions API 即時計算行程時間，並實作 SQLite 緩存"""
+def _build_google_maps_url(origin: str, destination: str, mode: str) -> str:
+    """產生 Google Maps Deep Link（支援 Web / App universal link）"""
+    from urllib.parse import quote
+    return (
+        f"https://www.google.com/maps/dir/?api=1"
+        f"&origin={quote(origin)}"
+        f"&destination={quote(destination)}"
+        f"&travelmode={mode}"
+    )
+
+
+def get_directions_time(db: Session, origin: str, destination: str, mode: str = "transit", force_refresh: bool = False) -> dict:
+    """呼叫 Google Directions API 即時計算行程時間，並實作 SQLite 緩存。
+    回傳 dict: { mins: int, is_fallback: bool, google_maps_url: str }
+    mins: >= 0 正常分鐘數, -1 找不到路徑, -2 API 呼叫失敗"""
+    google_maps_url = _build_google_maps_url(origin, destination, mode)
+
     if not origin or not destination:
-        return 0
+        return {"mins": 0, "is_fallback": False, "google_maps_url": google_maps_url}
 
     # 1. 如果不強制更新，先找資料庫有無緩存
     if not force_refresh:
@@ -31,7 +46,7 @@ def get_directions_time(db: Session, origin: str, destination: str, mode: str = 
             models.DirectionsCache.mode == mode
         ).first()
         if cached:
-            return cached.duration_mins
+            return {"mins": cached.duration_mins, "is_fallback": False, "google_maps_url": google_maps_url}
 
     # 2. 如果沒有緩存或強制更新，打 Google API (若無憑證則 mock)
     if not gmaps_client:
@@ -39,7 +54,7 @@ def get_directions_time(db: Session, origin: str, destination: str, mode: str = 
         new_cache = models.DirectionsCache(origin=origin, destination=destination, mode=mode, duration_mins=mock_time)
         db.add(new_cache)
         db.commit()
-        return mock_time
+        return {"mins": mock_time, "is_fallback": False, "google_maps_url": google_maps_url}
 
     try:
         directions_result = gmaps_client.directions(origin, destination, mode=mode, language="zh-TW")
@@ -49,11 +64,29 @@ def get_directions_time(db: Session, origin: str, destination: str, mode: str = 
             new_cache = models.DirectionsCache(origin=origin, destination=destination, mode=mode, duration_mins=duration_mins)
             db.add(new_cache)
             db.commit()
-            return duration_mins
-        return -1
+            return {"mins": duration_mins, "is_fallback": False, "google_maps_url": google_maps_url}
+
+        # --- ZERO_RESULTS fallback: transit 取不到就用 driving×1.2 ---
+        if mode == "transit":
+            print(f"Directions API: No transit route for '{origin}' → '{destination}', falling back to driving×1.2")
+            try:
+                driving_result = gmaps_client.directions(origin, destination, mode="driving", language="zh-TW")
+                if driving_result:
+                    driving_sec = driving_result[0]['legs'][0]['duration']['value']
+                    estimated_mins = int((driving_sec / 60) * 1.2)
+                    # 緩存 fallback 結果（以原 mode=transit 存入，避免重複打 API）
+                    new_cache = models.DirectionsCache(origin=origin, destination=destination, mode=mode, duration_mins=estimated_mins)
+                    db.add(new_cache)
+                    db.commit()
+                    return {"mins": estimated_mins, "is_fallback": True, "google_maps_url": google_maps_url}
+            except Exception as fallback_err:
+                print(f"Directions API fallback driving error: {fallback_err}")
+
+        print(f"Directions API: No route found from '{origin}' to '{destination}' (mode={mode})")
+        return {"mins": -1, "is_fallback": False, "google_maps_url": google_maps_url}
     except Exception as e:
-        print(f"Directions API Error: {e}")
-        return -1
+        print(f"Directions API Error [{mode}] '{origin}' → '{destination}': {e}")
+        return {"mins": -2, "is_fallback": False, "google_maps_url": google_maps_url}
 
 # ================================
 # 設定 AI Agent (Gemini) API
@@ -310,7 +343,7 @@ def ai_recommend_places(
 
     type_label = {"tourist_attraction": "景點", "restaurant": "餐廳", "cafe": "咖啡廳", "park": "公園", "shopping": "購物"}.get(place_type, place_type)
 
-    prompt = f"""你是一位專業的全球旅遊導遊，精通世界各地的熱門景點與當地文化。以下是目前搜尋區域（經緯度：{lat}, {lng}）附近的候選地點清單：
+    prompt = f"""你是一位經驗豐富的全球旅遊導遊，精通世界各地的熱門景點與在地文化。以下是目前搜尋區域（經緯度：{lat}, {lng}）附近的候選地點清單：
 
 {candidate_json}
 
@@ -319,7 +352,19 @@ def ai_recommend_places(
 請確保推薦的地點與候選地點清單中的地理座標一致。如果候選清單位於東京，請不要推薦台北的地點。
 
 請從名單中挑選出最符合需求的 {max_recommend} 個地點。按「推薦程度」由高到低排序。
-請為每個地點生成一個推薦理由（15 字以內，繁體中文），以及 2~3 個短標籤（例如：#在地激推、#必訪地標）。
+
+【重要★標籤與理由撰寫規則】
+1. 每個地點的「reason」必須描述該景點的獨特魅力或特色體驗，限 15 字以內（繁體中文）。
+2. 標籤（tags）必須具有辨識度與差異化，每個地點至少 2 個標籤。
+3. ★★★ 嚴格禁止 ★★★ 使用以下泛用型詞語作為標籤或理由的核心內容：
+   - ❌ 「評分高」「高評分」「評價高」「人氣高」「Google高分」
+   - ❌ 「推薦」「值得一去」「必去」（太籠統）
+4. ✅ 鼓勵使用以下風格的標籤：
+   - 場景型：#夕陽美景、#雨天也適合、#夜景聖地
+   - 體驗型：#手作體驗、#互動展覽、#現場表演
+   - 特色型：#百年老店、#巷弄秘境、#文青最愛、#傳統市場
+   - 時段型：#早午餐推薦、#深夜食堂、#晨間散步
+   - 對象型：#親子友善、#情侶約會、#長輩適合
 
 輸出格式必須嚴格遵守以下 JSON 陣列，不要有任何 markdown 或說明文字：
 [

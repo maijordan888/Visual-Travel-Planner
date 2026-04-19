@@ -38,12 +38,20 @@
 - **後端 AI 推薦**: 支援全域推薦（不限台灣），並可接收 `trip_context`（如行程標題）以提高地理相關性。
 - **動態地圖中心**: 優先使用 `startLocation` Geocode。若失敗或無資料，則對 `tripTitle` 進行 Geocode fallback。若連 Geocoder 都失效（API 未啟動），會改用 `PlacesService.findPlaceFromQuery` 進行地點搜尋定位。不預設中心，改由使用者輸入動態調整。
 
-### 交通時間計算 (Transport Time)
+### 交通時間計算 (Transport Time) — Deep Link + Fallback + Manual 混合模式
 - 不再使用硬編碼的 "35 分鐘" / "55 分鐘"。
 - `ItineraryNode.jsx` 透過 `useEffect` 呼叫 `api.getDirectionsTime(prevNodeName, selected_place_name, transport_mode)`。
-- 需要 `prevNodeName` prop 從 `App.jsx` 傳入（前一個節點的地名或出發地）。
-- 三種顯示狀態：「AI 試算中...」(loading)、「AI 試算時間：X 分鐘」(success)、「交通時間待試算」(pending/error)。
-- useEffect 有 cleanup (`cancelled` flag) 防止 stale 更新。
+- **三重邏輯**:
+  1. **Manual Override (最高優先)**: 若 `nodeData.manual_transport_time` 有值，優先顯示此值，UI 會出現「手動: X 分鐘」。點擊「重設」可回到自動模式。
+  2. **API Success**: 顯示 Google Directions API 計算結果。
+  3. **Fallback**: transit 失敗時改抓 driving × 1.2。
+- **Deep Link**: 所有模式（含手動）均可點擊「查看路線」開啟 Google Maps 檢查即時班次。
+- **UI 狀態**:
+  - 「AI 試算中...」(loading)
+  - 「X 分鐘」(success)
+  - 「⚠️ 估算 約 X 分鐘」(fallback)
+  - 「手動: [輸入框] 分鐘」(manual) + 「還原」按鈕
+- 透過 `updateNode(id, { manual_transport_time: val })` 進行持久化。
 
 ### AI 智能推薦 (兩套系統)
 #### A. 行程規劃 Tab (ItineraryTab)
@@ -56,11 +64,15 @@
 - **搜尋範圍**: 強制使用 `locationRestriction`（矩形或圓形），確保不跨區。
 - **收合行為**: 搜尋完成後如有結果，使用即時 `results` 變數（非 stale `places` state）觸發 `setIsFormCollapsed(true)`。
 - **Loading 差異化**: Google 模式顯示 skeleton card，AI 模式顯示專屬 sparkle + progress bar overlay。
+- **AI Prompt 強化**: 嚴格禁止「高評分」「人氣高」等泛用標籤，要求使用場景型/體驗型/特色型/時段型/對象型標籤。
+- **圖片 URL**: ExplorePanel 透過 `buildPhotoUrl(photo_ref)` 將 Google Places Photo Reference 轉為可顯示的 URL，隨 `handleAdd` 傳入 store。
 
 ### ExplorePanel 搜尋介面折疊機制
 - `isFormCollapsed` state 控制搜尋表單的顯示/隱藏。
-- 折疊時顯示 `.collapsed-indicator` 提示，hover 或 click 可展開。
-- CSS 透過 `.search-form-container.collapsed .search-form-content` 控制 `max-height: 0` + `opacity: 0`。
+- **手動切換**：有搜尋結果時顯示 `collapse-toggle-btn`（含 ChevronUp/ChevronDown icon），點擊切換 collapsed 狀態。不再使用 `onMouseEnter` 自動展開（避免誤觸）。
+- 折疊時 `search-form-content` 以 `max-height: 0` + `opacity: 0` 隱藏。
+- **模式切換時自動重置**：切換 Google/AI subMode 時會清空 `places`、`error`、`hasSearched`、`isLoading`，避免 stale 結果殘留。
+- CSS 透過 `.search-form-container.collapsed .search-form-content` 控制隱藏動畫。
 
 ### setTripDates 防護機制
 - 同日期不重算（`start === state.startDate && end === state.endDate` → return `{}`）。
@@ -80,9 +92,13 @@
 - 外包 `.place-picker-wrapper` 提供一致的 border/focus 樣式。
 
 ### 動態地圖中心 (MapModal)
-- `MapModal` 啟動時從 `useTripStore` 取得 `currentDayConfig.startLocation` 或第一個 confirmed 節點的地名。
-- 使用 `window.google.maps.Geocoder` 將地名轉為經緯度，設定為地圖初始中心。
-- 如果 geocode 失敗則 fallback 到 `defaultCenter` (台北 101)。
+- `MapModal` 啟動時依序嘗試以下來源決定初始中心：
+  1. **prevPlace**（前一個景點名稱）— 讓地圖跟隨行程進度
+  2. `currentDayConfig.startLocation`（當日出發地）
+  3. 第一個 confirmed 節點的地名
+  4. `tripTitle`（行程標題擷取地名）
+- 使用 `window.google.maps.Geocoder` 將地名轉為經緯度。
+- 如果 geocode 失敗則 fallback 到 `PlacesService.findPlaceFromQuery`。
 
 ## 5. 關鍵文件路徑
 - **Frontend**:
@@ -90,7 +106,8 @@
   - `src/components/MapModal.jsx`: 搜尋與探索的主要入口，含 PlacePicker 自動聚焦 + 動態地圖中心。不含 APIProvider。
   - `src/components/ExplorePanel.jsx`: 探索面板，含 Google/AI 雙模式搜尋。
   - `src/components/ExplorePanel.css`: 探索面板樣式，含折疊動畫與 AI Loading overlay。
-  - `src/components/ItineraryNode.jsx`: 時間軸上的個別節點 UI，含動態交通時間 API 呼叫。
+  - `src/components/ItineraryNode.jsx`: 時間軸上的個別節點 UI，含動態交通時間 API 呼叫 + 景點縮圖顯示。
+  - `src/components/ItineraryNode.css`: 節點樣式，含 `.node-thumbnail` 縮圖（cover fit + rounded corners）。
   - `src/App.jsx`: 主頁面，含自動捲動邏輯 + APIProvider 包裝 + PlacePicker 出發地/回程地 + Day 刪除。
   - `src/api.js`: 前端 API 層，封裝所有後端呼叫。
 - **Backend**:
@@ -107,6 +124,8 @@
 - **APIProvider 嵌套**: 不可重複嵌套 `APIProvider`。現在統一在 `App.jsx` 最外層提供。
 - **confirmOption 資料遺失**: 舊版 `confirmOption` 只更新選中項但不保留原 place 的資料。新版會將 current place 放回 options 並從 options 中移除新選中的項目。
 - **Transport Time Stale Request**: `ItineraryNode` 的 transport time useEffect 使用 `cancelled` flag 防止 component unmount 後的 stale state 更新。
+- **Photo URL 建構**: `ExplorePanel` 使用 `window.__GOOGLE_MAPS_API_KEY__`（由 `App.jsx` 設定）建構 Places Photo URL。`ItineraryNode` 內含 `onError` fallback 隱藏載入失敗的圖片。
+- **addOptionToNode photo_url 保存**: store 的 `addOptionToNode` 會將 `place.photo_url` 存入節點資料，持久化後自動保留。
 
 ## 7. 開發注意事項 (Handover Notes)
 - **狀態更新**: `nodesByDay` 是以天數為 Key 的物件，操作時需確保 Immutability。持久化後，初始 state 只在 localStorage 為空時使用。

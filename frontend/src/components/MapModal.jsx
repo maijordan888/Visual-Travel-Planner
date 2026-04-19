@@ -226,7 +226,7 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     loadAI();
   }, [prevPlace, nextPlace]);
 
-  // 動態地圖中心：嘗試用 startLocation -> tripTitle -> 保持現況
+  // 動態地圖中心：嘗試用 prevPlace -> startLocation -> tripTitle -> 保持現況
   useEffect(() => {
     if (!window.google?.maps?.Geocoder) return;
     const geocoder = new window.google.maps.Geocoder();
@@ -263,9 +263,19 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     };
 
     async function initCenter() {
-      console.log(`[MapModal] Initializing center. StartLocation: ${currentDayConfig?.startLocation}, TripTitle: ${tripTitle}`);
+      console.log(`[MapModal] Initializing center. prevPlace: ${prevPlace}, StartLocation: ${currentDayConfig?.startLocation}, TripTitle: ${tripTitle}`);
       
-      // 1. 優先用當日出發地
+      // 0. 最優先：使用前一個景點的位置（讓地圖跟隨行程進度）
+      if (prevPlace) {
+        const loc = await tryGeocode(prevPlace);
+        if (loc) {
+          setMapCenter(loc);
+          setItineraryCenter(loc);
+          return;
+        }
+      }
+
+      // 1. 其次用當日出發地
       if (currentDayConfig?.startLocation) {
         const loc = await tryGeocode(currentDayConfig.startLocation);
         if (loc) {
@@ -275,7 +285,7 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
         }
       }
 
-      // 2. 其次用第一個確認點
+      // 2. 再用第一個確認點
       if (firstConfirmed?.selected_place_name) {
         const loc = await tryGeocode(firstConfirmed.selected_place_name);
         if (loc) {
@@ -285,7 +295,7 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
         }
       }
 
-      // 3. 再其次用行程標題 (提取地名，如 "東京三日遊" -> "東京")
+      // 3. 最後用行程標題 (提取地名，如 "東京三日遊" -> "東京")
       if (tripTitle && tripTitle !== '未命名行程') {
         const hint = tripTitle.replace(/行程|三日遊|自由行|之旅/g, '').substring(0, 10);
         const loc = await tryGeocode(hint);
@@ -298,7 +308,7 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     }
 
     initCenter();
-  }, [currentDayConfig?.startLocation, firstConfirmed?.selected_place_name, tripTitle]);
+  }, [prevPlace, currentDayConfig?.startLocation, firstConfirmed?.selected_place_name, tripTitle]);
 
   // 自動聚焦 PlacePicker
   useEffect(() => {

@@ -1,24 +1,44 @@
 .itinerary-node {
     display: flex;
-    flex-direction: column;
-    margin-bottom: 24px;
-    padding-left: 64px;
+    flex-direction: row;
+    gap: 12px;
+    margin-bottom: 32px;
     position: relative;
     z-index: 2;
+    padding-left: 8px;
 }
 
-/* Endpoint (起終點特殊的樣式) */
-.itinerary-node.endpoint {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-    padding-left: 20px;
-}
+/* 左側時間標籤 */
 .node-time {
     font-weight: 700;
     color: var(--primary);
-    width: 60px;
+    width: 50px;
+    font-size: 0.95rem;
+    padding-top: 2px;
+    flex-shrink: 0;
+    text-align: right;
 }
+
+/* 中間圓點/圖示區域 */
+.node-marker-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 32px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.node-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid var(--primary);
+    z-index: 2;
+    margin-top: 6px;
+}
+
 .node-icon {
     width: 32px;
     height: 32px;
@@ -28,6 +48,24 @@
     align-items: center;
     justify-content: center;
     z-index: 2;
+}
+
+/* 右側主要內容區 */
+.node-main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 起終點特殊樣式微調 */
+.itinerary-node.endpoint-variant {
+    align-items: center;
+}
+
+.endpoint-simple-card {
+    background: rgba(255,255,255,0.7);
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
 }
 
 /* 中間層交通資訊 */
@@ -67,6 +105,74 @@
     color: var(--text-muted);
     padding: 0 12px;
     font-weight: 500;
+}
+.transport-time.fallback {
+    color: #d97706;
+    border-bottom: 1px dashed #d97706;
+    padding-bottom: 1px;
+}
+.fallback-badge {
+    font-size: 0.75rem;
+    margin-right: 4px;
+}
+.deep-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.75rem;
+    color: var(--primary);
+    text-decoration: none;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    margin-left: 4px;
+}
+.deep-link-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+/* 手動輸入模式樣式 */
+.manual-time-input-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 8px;
+}
+.manual-label {
+    font-size: 0.75rem;
+    color: var(--primary);
+    font-weight: 600;
+}
+.transport-manual-input {
+    width: 50px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--primary);
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+}
+.manual-toggle-btn, .manual-action-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    transition: 0.2s;
+    opacity: 0.6;
+}
+.manual-toggle-btn:hover, .manual-action-btn:hover {
+    color: var(--primary);
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 .node-card {
@@ -115,15 +221,31 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
 }
+
+/* Node Thumbnail */
+.node-thumbnail {
+    width: 100%;
+    max-height: 140px;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    order: -1;
+}
+
 .card-header h4 {
     font-size: 1.2rem;
     color: var(--text-main);
+    flex: 1;
+    min-width: 0;
 }
 .rating {
     font-weight: 600;
     color: #fbbf24;
     font-size: 0.95rem;
+    white-space: nowrap;
 }
 
 .card-details {

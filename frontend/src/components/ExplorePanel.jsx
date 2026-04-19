@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import { Search, Sparkles, SlidersHorizontal, MapPin, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import { Search, Sparkles, SlidersHorizontal, MapPin, AlertCircle, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import PlaceCard from './PlaceCard';
 import { api } from '../api';
@@ -36,6 +36,14 @@ const SUGGESTED_PROMPTS = [
  *   onAddPlace  — callback(place)，加入行程
  *   onHoverPlace — callback(place | null)，觸發地圖 Marker 高亮
  */
+const GOOGLE_PHOTO_BASE = `https://places.googleapis.com/v1`;
+
+function buildPhotoUrl(photoRef, maxWidth = 400) {
+  if (!photoRef) return null;
+  const apiKey = window.__GOOGLE_MAPS_API_KEY__ || '';
+  return `${GOOGLE_PHOTO_BASE}/${photoRef}/media?maxWidthPx=${maxWidth}&key=${apiKey}`;
+}
+
 export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHoverPlace, onPlacesLoaded, prevPlace }) {
   // Sub-mode: 'google' | 'ai'
   const [subMode, setSubMode] = useState('google');
@@ -137,6 +145,7 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
       tag: place.reason || place.types?.[0] || '周邊推薦',
       lat: place.lat,
       lng: place.lng,
+      photo_url: buildPhotoUrl(place.photo_ref),
     });
   };
 
@@ -144,12 +153,20 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
     <div className="explore-panel">
       <div 
         className={`search-form-container ${isFormCollapsed && places.length > 0 ? 'collapsed' : ''}`}
-        onMouseEnter={() => { if (isFormCollapsed && places.length > 0) setIsFormCollapsed(false); }}
       >
-        {isFormCollapsed && places.length > 0 && (
-           <div className="collapsed-indicator" onClick={() => setIsFormCollapsed(false)}>
-             🔍 點擊或游標移入以展開搜尋設定
-           </div>
+        {/* 手動切換 chevron 按鈕 — 有結果時才顯示 */}
+        {places.length > 0 && (
+          <button
+            className="collapse-toggle-btn"
+            onClick={() => setIsFormCollapsed(prev => !prev)}
+            title={isFormCollapsed ? '展開搜尋設定' : '收合搜尋設定'}
+          >
+            {isFormCollapsed ? (
+              <><ChevronDown size={16} /> 展開搜尋設定</>
+            ) : (
+              <><ChevronUp size={16} /> 收合搜尋設定</>
+            )}
+          </button>
         )}
         
         <div className="search-form-content">
@@ -157,7 +174,15 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
           <div className="sub-mode-toggle">
             <button
               className={`sub-mode-btn ${subMode === 'google' ? 'active' : ''}`}
-              onClick={() => setSubMode('google')}
+              onClick={() => {
+                if (subMode !== 'google') {
+                  setSubMode('google');
+                  setPlaces([]);
+                  setError('');
+                  setHasSearched(false);
+                  setIsLoading(false);
+                }
+              }}
               id="explore-google-tab"
             >
               <Search size={14} />
@@ -165,7 +190,15 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
             </button>
             <button
               className={`sub-mode-btn ai ${subMode === 'ai' ? 'active' : ''}`}
-              onClick={() => setSubMode('ai')}
+              onClick={() => {
+                if (subMode !== 'ai') {
+                  setSubMode('ai');
+                  setPlaces([]);
+                  setError('');
+                  setHasSearched(false);
+                  setIsLoading(false);
+                }
+              }}
               id="explore-ai-tab"
             >
               <Sparkles size={14} />

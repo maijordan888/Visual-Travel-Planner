@@ -8,7 +8,18 @@ export const api = {
       body: JSON.stringify({ origin, destination, mode, force_refresh: forceRefresh }),
     });
     const data = await res.json();
-    return data.travel_time_mins || 0;
+    if (data.error) {
+      return {
+        error: data.error,
+        detail: data.detail || '未知錯誤',
+        google_maps_url: data.google_maps_url || null,
+      };
+    }
+    return {
+      travel_time_mins: data.travel_time_mins,
+      is_fallback: data.is_fallback || false,
+      google_maps_url: data.google_maps_url || null,
+    };
   },
 
   async getAIRecommendations(prevPlace, nextPlace, count = 3, tripContext = "") {

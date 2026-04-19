@@ -67,10 +67,28 @@ def health_check():
 
 @app.post("/directions/calculate-time")
 def calculate_travel_time(req: DirectionsRequest, db: Session = Depends(get_db)):
-    mins = services.get_directions_time(db, req.origin, req.destination, req.mode, req.force_refresh)
+    result = services.get_directions_time(db, req.origin, req.destination, req.mode, req.force_refresh)
+    mins = result["mins"]
     if mins == -1:
-        return {"error": "無法計算"}
-    return {"origin": req.origin, "destination": req.destination, "travel_time_mins": mins, "mode": req.mode}
+        return {
+            "error": "no_route",
+            "detail": f"找不到從 {req.origin} 到 {req.destination} 的路徑",
+            "google_maps_url": result["google_maps_url"],
+        }
+    if mins == -2:
+        return {
+            "error": "api_error",
+            "detail": "API 呼叫失敗，請檢查後端日誌",
+            "google_maps_url": result["google_maps_url"],
+        }
+    return {
+        "origin": req.origin,
+        "destination": req.destination,
+        "travel_time_mins": mins,
+        "mode": req.mode,
+        "is_fallback": result["is_fallback"],
+        "google_maps_url": result["google_maps_url"],
+    }
 
 @app.post("/recommend-places")
 def get_ai_recommendations(req: RecommendRequest):

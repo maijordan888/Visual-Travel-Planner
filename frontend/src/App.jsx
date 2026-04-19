@@ -9,6 +9,9 @@ import { useTripStore } from './store/useTripStore';
 const apiKey =
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_dummy_key_to_prevent_crash_12345';
 
+// Expose API key for Places Photo URL construction
+window.__GOOGLE_MAPS_API_KEY__ = apiKey;
+
 export default function App() {
   const { 
     activeDay, setActiveDay, setDayConfig, nodesByDay,
@@ -65,6 +68,29 @@ export default function App() {
       setTimeout(() => setConfirmingDeleteDayId(null), 3000);
     }
   };
+
+  // 時間計算輔助函式
+  const addMinutesToTime = (timeStr, mins) => {
+    const [h, m] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h, m + mins, 0);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+
+  // 渲染時計算時間軸
+  let currentRefTime = dayConfig.startTime;
+  const nodesWithCalculatedTimes = dailyNodes.map((node, i) => {
+    // 取得交通時間 (手動優先，其次自動)
+    const transport = node.manual_transport_time ?? node.auto_transport_time ?? 0;
+    const arrivalTime = addMinutesToTime(currentRefTime, transport);
+    // 更新下一個節點的參考時間 (抵達 + 停留)
+    currentRefTime = addMinutesToTime(arrivalTime, node.planned_stay_duration || 0);
+    return { ...node, arrivalTime };
+  });
+
+  // 計算終點時間 (最後一個節點到終點飯店)
+  // 這裡假設最後一站到飯店大約 20 分鐘，如果有 API 數據可以更精確 (目前暫不複雜化)
+  const finalEndpointTime = addMinutesToTime(currentRefTime, 20);
 
   return (
     <APIProvider apiKey={apiKey} version="beta" libraries={['places']}>
@@ -202,20 +228,21 @@ export default function App() {
               </div>
             </div>
 
-            {dailyNodes.map((node, i) => {
+            {nodesWithCalculatedTimes.map((node, i) => {
                // 找出前一個節點的地名用作 AI 推薦上下文
-               const prevPlace = i === 0 ? dayConfig.startLocation : (dailyNodes[i-1].selected_place_name || "上一個景點");
+               const prevPlace = i === 0 ? dayConfig.startLocation : (nodesWithCalculatedTimes[i-1].selected_place_name || "上一個景點");
                const nextPlace = dayConfig.endLocation;
 
                return (
-                 <div key={node.id} style={{ position: 'relative', marginBottom: '32px' }} ref={i === dailyNodes.length - 1 ? lastNodeRef : null}>
+                 <div key={node.id} style={{ position: 'relative', marginBottom: '32px' }} ref={i === nodesWithCalculatedTimes.length - 1 ? lastNodeRef : null}>
                    <ItineraryNode 
                      nodeData={node}
+                     time={node.arrivalTime} // 傳遞計算出的時間
                      prevNodeName={prevPlace}
                      onOpenModal={() => setIsModalOpen({ nodeId: node.id, prevPlace, nextPlace })}
                      isOvertime={hasOvertimeWarning && i === 1} // 模擬超時節點
                    />
-                   <div style={{ position: 'absolute', bottom: '-20px', left: '44px', zIndex: 10 }}>
+                   <div style={{ position: 'absolute', bottom: '-20px', left: '60px', zIndex: 10 }}>
                       <button onClick={() => useTripStore.getState().insertEmptyNode(node.id)} className="btn small outline" style={{borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)'}} title="新增下一站">
                         <Plus size={16} />
                       </button>
@@ -228,7 +255,7 @@ export default function App() {
               <ItineraryNode 
                 isEndEndpoint 
                 nodeTitle={dayConfig.endLocation} 
-                time="22:30" 
+                time={finalEndpointTime} // 傳遞動態計算的回程時間
               />
             </div>
           </section>
