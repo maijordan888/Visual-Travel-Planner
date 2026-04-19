@@ -416,3 +416,66 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* ── AI Loading Overlay ── */
+.ai-loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.ai-loading-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.ai-loading-sparkle {
+  color: #a78bfa;
+  animation: sparkle-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+}
+
+.ai-loading-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #c4b5fd;
+  margin: 0;
+}
+
+.ai-loading-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.ai-loading-bar {
+  width: 160px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.ai-loading-bar-inner {
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #a78bfa, #6366f1);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: ai-bar-progress 1.8s ease-in-out infinite;
+}
+
+@keyframes ai-bar-progress {
+  0% { width: 20%; margin-left: 0; }
+  50% { width: 50%; margin-left: 25%; }
+  100% { width: 20%; margin-left: 80%; }
+}

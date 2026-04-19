@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { MapPin, Navigation, Car, Bus, Plus, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Navigation, Car, Bus, Plus, Clock, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import './ItineraryNode.css';
 import { useTripStore } from '../store/useTripStore';
+import { api } from '../api';
 
 export default function ItineraryNode({ 
     isStartEndpoint, 
@@ -9,10 +10,13 @@ export default function ItineraryNode({
     nodeTitle, 
     time, 
     nodeData,
+    prevNodeName,
     onOpenModal,
     isOvertime
 }) {
   const [isBackupExpanded, setIsBackupExpanded] = useState(false);
+  const [transportTime, setTransportTime] = useState(null);
+  const [isLoadingTime, setIsLoadingTime] = useState(false);
   const { updateNode, confirmOption } = useTripStore();
 
   // 首尾節點
@@ -34,8 +38,55 @@ export default function ItineraryNode({
 
   const { status, selected_place_name, planned_stay_duration, transport_mode, rating, options } = nodeData;
 
+  // 動態計算交通時間：有前一站名稱 + 自己已確認時才呼叫 API
+  useEffect(() => {
+    if (!prevNodeName || !selected_place_name || status !== 'confirmed') {
+      setTransportTime(null);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchTime() {
+      setIsLoadingTime(true);
+      try {
+        const mins = await api.getDirectionsTime(prevNodeName, selected_place_name, transport_mode);
+        if (!cancelled) setTransportTime(mins);
+      } catch (e) {
+        console.error('Failed to fetch transport time:', e);
+        if (!cancelled) setTransportTime(null);
+      }
+      if (!cancelled) setIsLoadingTime(false);
+    }
+    fetchTime();
+    return () => { cancelled = true; };
+  }, [prevNodeName, selected_place_name, transport_mode, status]);
+
   const handleModeChange = (mode) => updateNode(nodeData.id, { transport_mode: mode });
   const handleDurationChange = (e) => updateNode(nodeData.id, { planned_stay_duration: Number(e.target.value) });
+
+  const renderTransportTime = () => {
+    if (isLoadingTime) {
+      return (
+        <span className="transport-time loading">
+          <Loader2 size={14} className="animate-spin" style={{ color: 'var(--primary)', marginRight: 4 }} />
+          AI 試算中...
+        </span>
+      );
+    }
+    if (transportTime !== null && transportTime > 0) {
+      return (
+        <span className="transport-time">
+          AI 試算時間：{transportTime} 分鐘
+          {transport_mode === 'transit' && <span style={{fontSize: '0.8rem', color: 'var(--primary)', marginLeft: 8}}>[變更路線]</span>}
+        </span>
+      );
+    }
+    return (
+      <span className="transport-time" style={{ opacity: 0.5 }}>
+        交通時間待試算
+      </span>
+    );
+  };
 
   return (
     <div className="itinerary-node animate-slide-down">
@@ -48,10 +99,7 @@ export default function ItineraryNode({
           <button className={`icon-btn ${transport_mode === 'transit' ? 'active' : ''}`} onClick={() => handleModeChange('transit')}>
             <Bus size={16} />
           </button>
-          <span className="transport-time">
-            AI 試算時間：{transport_mode === 'driving' ? '35 分鐘' : '55 分鐘'} 
-            {transport_mode === 'transit' && <span style={{fontSize: '0.8rem', color: 'var(--primary)', marginLeft: 8}}>[變更路線]</span>}
-          </span>
+          {renderTransportTime()}
         </div>
       </div>
 

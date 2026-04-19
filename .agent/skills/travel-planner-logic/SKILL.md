@@ -3,15 +3,16 @@
 此 Skill 旨在提供專案開發者與 AI Agent 快速理解「Visual Travel Planner」的技術框架與核心邏輯。
 
 ## 1. 技術棧 (Tech Stack)
-- **Frontend**: React (Vite) + Zustand (State Management) + Google Maps SDK (vis.gl)
+- **Frontend**: React (Vite) + Zustand (State Management + Persist) + Google Maps SDK (vis.gl)
 - **Backend**: FastAPI (Python) + SQLAlchemy (SQLite)
 - **AI/API**: Google Gemini (Recommendations) + Google Places API New + Google Directions API
 
 ## 2. 核心數據模型 (Data Model)
-### 前端狀態 (Zustand Store)
+### 前端狀態 (Zustand Store — `useTripStore.js`)
 - `nodesByDay`: `{[day: number]: ItineraryNode[]}`。行程的核心，存儲每天的景點節點。
 - `dayConfigs`: `{[day: number]: DayConfig}`。存儲每天的出發/回程地、時間等元數據。
 - `activeDay`: 目前操作的天數索引。
+- **持久化**: 使用 Zustand `persist` middleware，資料存於 localStorage key `travel-planner-store`。`partialize` 只保存核心資料（tripTitle, startDate, endDate, dayConfigs, nodesByDay），不存暫態如 activeDay。
 
 ### 節點狀態 (Node Status)
 - `confirmed`: 已選定地點的景點節點。
@@ -22,33 +23,104 @@
 1. **插入節點**: `insertEmptyNode(afterId)` 會在特定位置插入一個空的 `pending_options` 節點。
 2. **選取地點**: 通過 `MapModal` 呼叫 `addOptionToNode`。此動作會將選中地點設為該節點的主要內容，並將原內容移至 `options` 清單中。
 3. **動態計算**: 前端會根據 `nodesByDay` 直接計算渲染，避免使用失效的 Getter。
+4. **自動捲動**: 新增節點後 `App.jsx` 會透過 `useRef` + `useEffect` 監聽 `dailyNodes.length` 變化，自動 `scrollIntoView({ behavior: 'smooth', block: 'center' })` 到最新節點。
 
-### AI 智能推薦
-- **路徑**: `POST /recommend-places` -> `services.py`。
-- **邏輯**: 傳入 `prev_place` 與 `next_place`，由 Gemini 分析沿途合適的景點，並回傳格式化的 JSON 結果。
+### 備選方案切換 (Backup Option Swapping)
+- `confirmOption(nodeId, optionId)` 現在會：
+  1. 將目前已選定的地點（selected_place_name）放回 `options` 清單
+  2. 將被選中的 option 從清單中移除
+  3. 設定新選中的 option 為 confirmed 狀態
+- 此邏輯防止資料遺失與重複，確保切換備選方案時原本的選擇不會消失。
 
-## 4. 關鍵文件路徑
+### 天數管理
+- **刪除天數**: `removeDay(dayNumber)` 將指定天刪除，後續天數自動遞補 (Day 3 → Day 2)，`endDate` 同步調整。最少保留一天。
+- **Delete UI (二次確認)**: 點擊垃圾桶進入 `confirming` 狀態（顯示「確定？」），再次點擊才執行刪除。3秒未點擊自動重設。
+- **後端 AI 推薦**: 支援全域推薦（不限台灣），並可接收 `trip_context`（如行程標題）以提高地理相關性。
+- **動態地圖中心**: 優先使用 `startLocation` Geocode。若失敗或無資料，則對 `tripTitle` 進行 Geocode fallback。若連 Geocoder 都失效（API 未啟動），會改用 `PlacesService.findPlaceFromQuery` 進行地點搜尋定位。不預設中心，改由使用者輸入動態調整。
+
+### 交通時間計算 (Transport Time)
+- 不再使用硬編碼的 "35 分鐘" / "55 分鐘"。
+- `ItineraryNode.jsx` 透過 `useEffect` 呼叫 `api.getDirectionsTime(prevNodeName, selected_place_name, transport_mode)`。
+- 需要 `prevNodeName` prop 從 `App.jsx` 傳入（前一個節點的地名或出發地）。
+- 三種顯示狀態：「AI 試算中...」(loading)、「AI 試算時間：X 分鐘」(success)、「交通時間待試算」(pending/error)。
+- useEffect 有 cleanup (`cancelled` flag) 防止 stale 更新。
+
+### AI 智能推薦 (兩套系統)
+#### A. 行程規劃 Tab (ItineraryTab)
+- **路徑**: `POST /recommend-places` -> `services.py::recommend_places()`
+- **邏輯**: 傳入 `prev_place` 與 `next_place`，由 Gemini 分析沿途合適的景點。
+
+#### B. 探索與推薦 Tab (ExplorePanel)
+- **路徑**: `POST /ai-recommend` -> `services.py::ai_recommend_places()`
+- **邏輯**: 先用 Google Places Nearby/Text Search 拉 20 個候選，再由 Gemini 過濾排名。
+- **搜尋範圍**: 強制使用 `locationRestriction`（矩形或圓形），確保不跨區。
+- **收合行為**: 搜尋完成後如有結果，使用即時 `results` 變數（非 stale `places` state）觸發 `setIsFormCollapsed(true)`。
+- **Loading 差異化**: Google 模式顯示 skeleton card，AI 模式顯示專屬 sparkle + progress bar overlay。
+
+### ExplorePanel 搜尋介面折疊機制
+- `isFormCollapsed` state 控制搜尋表單的顯示/隱藏。
+- 折疊時顯示 `.collapsed-indicator` 提示，hover 或 click 可展開。
+- CSS 透過 `.search-form-container.collapsed .search-form-content` 控制 `max-height: 0` + `opacity: 0`。
+
+### setTripDates 防護機制
+- 同日期不重算（`start === state.startDate && end === state.endDate` → return `{}`）。
+- 結束日早於開始日 → 自動校正為 start。
+- `diffDays` 上限 30 天，防止溢出。
+
+## 4. 架構層級 (Component Architecture)
+
+### APIProvider 層級
+- `APIProvider` 現在位於 `App.jsx` 最外層（非 `MapModal` 內），避免重複包裝或嵌套衝突。
+- `MapModal` 不再包含 `APIProvider`，直接使用父層級提供的 API context。
+- 這使得 `App.jsx` 中的出發地/回程地 `PlacePicker` 也能正常運作。
+
+### 出發地/回程地自動補全
+- `App.jsx` 的 day-config 區域使用 `PlacePicker` Web Component 取代純文字 input。
+- 選擇地點後透過 `handleStartPlaceChange` / `handleEndPlaceChange` 更新 `dayConfig.startLocation` / `dayConfig.endLocation`。
+- 外包 `.place-picker-wrapper` 提供一致的 border/focus 樣式。
+
+### 動態地圖中心 (MapModal)
+- `MapModal` 啟動時從 `useTripStore` 取得 `currentDayConfig.startLocation` 或第一個 confirmed 節點的地名。
+- 使用 `window.google.maps.Geocoder` 將地名轉為經緯度，設定為地圖初始中心。
+- 如果 geocode 失敗則 fallback 到 `defaultCenter` (台北 101)。
+
+## 5. 關鍵文件路徑
 - **Frontend**:
-  - `src/store/useTripStore.js`: 所有的狀態修改邏輯。
-  - `src/components/MapModal.jsx`: 搜尋與探索的主要入口。
-  - `src/components/ItineraryNode.jsx`: 時間軸上的個別節點 UI。
+  - `src/store/useTripStore.js`: 所有的狀態修改邏輯 + Zustand Persist。含 `removeDay`, `confirmOption` (swap logic), `addOptionToNode` 等。
+  - `src/components/MapModal.jsx`: 搜尋與探索的主要入口，含 PlacePicker 自動聚焦 + 動態地圖中心。不含 APIProvider。
+  - `src/components/ExplorePanel.jsx`: 探索面板，含 Google/AI 雙模式搜尋。
+  - `src/components/ExplorePanel.css`: 探索面板樣式，含折疊動畫與 AI Loading overlay。
+  - `src/components/ItineraryNode.jsx`: 時間軸上的個別節點 UI，含動態交通時間 API 呼叫。
+  - `src/App.jsx`: 主頁面，含自動捲動邏輯 + APIProvider 包裝 + PlacePicker 出發地/回程地 + Day 刪除。
+  - `src/api.js`: 前端 API 層，封裝所有後端呼叫。
 - **Backend**:
   - `backend/main.py`: API 路由入口。
   - `backend/services.py`: 複雜的 AI 處理與 API 調用邏輯。
   - `backend/models.py`: 數據庫 Schema 定義。
 
-## 5. 已知問題與修復建議 (Known Issues)
-- **天數溢出 Bug**: `setTripDates` 在更新 `startDate/endDate` 時會重算 `diffDays`。若觸發頻率過高或在渲染週期內調用，可能導致側邊欄天數無限增加。建議增加 Debounce 或更嚴格的輸入驗證。
-- **數據持久化缺失**: 目前重新整理頁面會導致狀態遺失。建議在 `useTripStore` 中引入 Zustand 的 `persist` Middleware。
-- **地圖中心同步**: MapModal 開啟時預設中心與目前行程上下文（Context）脫節。應優化 `itineraryCenter` 的初始化邏輯。
-- **搜尋範圍偏差**: 若未指定 Bounds，AI 推薦可能回傳非目標區域的地點（例如東京行程出現台北景點）。需在 API Request 中加入 `locationRestriction`。
+## 6. 常見陷阱與修復紀錄 (Gotchas & Fix Log)
+- **Stale Closure in ExplorePanel**: `handleSearch` 的 `finally` 區塊中不能引用 `places` state（它是 stale 的），需使用 `try` 區塊內的即時 `results` 變數。
+- **Zustand Getter 問題**: `Object.assign` 會把 getter 變成靜態值。不要在 store 中定義 getter（如 `get dailyNodes()`），改在 component 直接計算。
+- **天數溢出 Bug**: `setTripDates` 在觸發頻率過高或渲染週期內會陷入無限循環。已加入同日期跳過 + 30 天上限。
+- **PlacePicker 聚焦**: Google Web Component 的 input 在 shadow DOM 內，需用 `shadowRoot?.querySelector('input')` 存取。
+- **searchText vs searchNearby**: 有 keyword 時走 `searchText`（支援 `includedType` 單一值），無 keyword 時走 `searchNearby`（支援 `includedTypes` 陣列）。
+- **APIProvider 嵌套**: 不可重複嵌套 `APIProvider`。現在統一在 `App.jsx` 最外層提供。
+- **confirmOption 資料遺失**: 舊版 `confirmOption` 只更新選中項但不保留原 place 的資料。新版會將 current place 放回 options 並從 options 中移除新選中的項目。
+- **Transport Time Stale Request**: `ItineraryNode` 的 transport time useEffect 使用 `cancelled` flag 防止 component unmount 後的 stale state 更新。
 
-## 6. 開發注意事項 (Handover Notes)
-- **狀態更新**: 注意 `nodesByDay` 是以天數為 Key 的物件，操作時需確保 Immutability。
-- **UI 捲動**: 新增節點後應實作自動捲動（Auto-scroll），可利用 `Ref` 與 `scrollIntoView`。
+## 7. 開發注意事項 (Handover Notes)
+- **狀態更新**: `nodesByDay` 是以天數為 Key 的物件，操作時需確保 Immutability。持久化後，初始 state 只在 localStorage 為空時使用。
+- **UI 捲動**: 新增節點後已實作自動捲動（Auto-scroll），利用 `lastNodeRef` + `scrollIntoView`。
 - **API 欄位**: `Places API (New)` 需明確指定 `fetchFields`，否則會導致資料缺失。
+- **清除持久化資料**: 若需重置測試資料，在 console 執行 `localStorage.removeItem('travel-planner-store')`。
+- **節點間距**: `App.jsx` 中每個節點容器使用 `marginBottom: 32px` 防止 "+" 按鈕與下一個交通選擇器重疊。
 
-## 7. 測試路徑 (Testing Path)
+## 8. 測試路徑 (Testing Path)
 1. 確保 `npm run dev` (Frontend) 與 `uvicorn` (Backend) 皆在運行中。
 2. 使用 `Chrome` 或其他現代瀏覽器開啟 `localhost:5173`。
 3. 測試「新建行程」->「新增景點」->「AI 推薦」的完整閉環。
+4. 測試「重新整理頁面」後行程是否保留 (Persist 驗證)。
+5. 測試「修改日期」極端情況 (30+ 天、同日期重複觸發)。
+6. 測試「刪除天數」— 確認後續天數正確遞補、endDate 更新。
+7. 測試「切換備選方案」— 確認原選擇放回 options、新選擇從 options 移除。
+8. 測試「交通時間」— 確認 API 呼叫正常、Loading 狀態顯示。

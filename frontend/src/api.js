@@ -11,11 +11,11 @@ export const api = {
     return data.travel_time_mins || 0;
   },
 
-  async getAIRecommendations(prevPlace, nextPlace, count = 3) {
+  async getAIRecommendations(prevPlace, nextPlace, count = 3, tripContext = "") {
     const res = await fetch(`${API_BASE}/recommend-places`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prev_place: prevPlace, next_place: nextPlace, count }),
+      body: JSON.stringify({ prev_place: prevPlace, next_place: nextPlace, count, trip_context: tripContext }),
     });
     const data = await res.json();
     return data.recommendations || [];

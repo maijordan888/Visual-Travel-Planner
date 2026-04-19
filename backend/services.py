@@ -61,7 +61,7 @@ def get_directions_time(db: Session, origin: str, destination: str, mode: str = 
 LLM_API_KEY = os.getenv("GEMINI_API_KEY")
 ai_client = genai.Client(api_key=LLM_API_KEY) if LLM_API_KEY and LLM_API_KEY != "your_gemini_api_key_here" else None
 
-def recommend_places(prev_place: str, next_place: str, count: int = 3):
+def recommend_places(prev_place: str, next_place: str, count: int = 3, trip_context: str = ""):
     """利用 Gemini 判斷路徑並推薦順路的景點 (舊版，保留相容)"""
     if not ai_client:
         return [
@@ -70,8 +70,11 @@ def recommend_places(prev_place: str, next_place: str, count: int = 3):
         ]
 
     prompt = f"""
-    我正在規劃一段旅程，剛離開地點 A：「{prev_place}」，接下來預計前往地點 B：「{next_place}」。
+    我正在規劃一段名為「{trip_context if trip_context else '自由行'}」的旅程。
+    目前剛離開地點 A：「{prev_place}」，接下來預計前往地點 B：「{next_place}」。
     請推薦 {count} 個評價 4.0 顆星以上且適合安插在 A 到 B 之間「順路」的景點。
+    
+    請注意：如果 A 或 B 在日本，請推薦日本的地點；如果在歐洲，請推薦歐洲的地點。
     
     請以 JSON Array 格式回傳，每個物件包含：
     - id: 生成一個簡短的不重複英文代號 (如 p1, p2)
@@ -244,14 +247,19 @@ def search_nearby_places(
 
 
 def _mock_nearby(lat: float, lng: float, count: int) -> list:
-    """當 API Key 無效時回傳 Mock 資料"""
-    mock_places = [
-        {"place_id": "mock1", "name": "台北 101", "rating": 4.6, "user_rating_count": 50000, "types": ["tourist_attraction"], "address": "台北市信義區信義路五段7號", "lat": 25.0339, "lng": 121.5619, "photo_ref": None, "is_open": True},
-        {"place_id": "mock2", "name": "象山步道", "rating": 4.5, "user_rating_count": 30000, "types": ["park"], "address": "台北市信義區象山", "lat": 25.0283, "lng": 121.5780, "photo_ref": None, "is_open": True},
-        {"place_id": "mock3", "name": "四四南村", "rating": 4.4, "user_rating_count": 15000, "types": ["tourist_attraction"], "address": "台北市信義區松勤街50號", "lat": 25.0336, "lng": 121.5673, "photo_ref": None, "is_open": None},
-        {"place_id": "mock4", "name": "信義誠品", "rating": 4.5, "user_rating_count": 20000, "types": ["shopping_mall"], "address": "台北市信義區松高路11號", "lat": 25.0389, "lng": 121.5682, "photo_ref": None, "is_open": True},
-        {"place_id": "mock5", "name": "饒河夜市", "rating": 4.3, "user_rating_count": 45000, "types": ["market"], "address": "台北市松山區饒河街", "lat": 25.0511, "lng": 121.5774, "photo_ref": None, "is_open": True},
-    ]
+    """當 API Key 無效時回傳 Mock 資料，根據經緯度決定返回哪區"""
+    # 簡單判斷：若 lng > 130 可能是日本
+    if lng > 130:
+        mock_places = [
+            {"place_id": "m1", "name": "東京鐵塔", "rating": 4.6, "user_rating_count": 50000, "types": ["tourist_attraction"], "address": "Tokyo", "lat": 35.6586, "lng": 139.7454, "photo_ref": None, "is_open": True},
+            {"place_id": "m2", "name": "淺草寺", "rating": 4.5, "user_rating_count": 80000, "types": ["tourist_attraction"], "address": "Asakusa", "lat": 35.7148, "lng": 139.7967, "photo_ref": None, "is_open": True},
+            {"place_id": "m3", "name": "澀谷交叉口", "rating": 4.5, "user_rating_count": 100000, "types": ["tourist_attraction"], "address": "Shibuya", "lat": 35.6595, "lng": 139.7005, "photo_ref": None, "is_open": True},
+        ]
+    else:
+        mock_places = [
+            {"place_id": "mock1", "name": "台北 101", "rating": 4.6, "user_rating_count": 50000, "types": ["tourist_attraction"], "address": "台北市", "lat": 25.0339, "lng": 121.5619, "photo_ref": None, "is_open": True},
+            {"place_id": "mock2", "name": "象山步道", "rating": 4.5, "user_rating_count": 30000, "types": ["park"], "address": "台北市", "lat": 25.0283, "lng": 121.5780, "photo_ref": None, "is_open": True},
+        ]
     return mock_places[:count]
 
 
@@ -302,15 +310,16 @@ def ai_recommend_places(
 
     type_label = {"tourist_attraction": "景點", "restaurant": "餐廳", "cafe": "咖啡廳", "park": "公園", "shopping": "購物"}.get(place_type, place_type)
 
-    prompt = f"""你是一位專業的旅遊導遊，精通台灣各地景點與美食。以下是地圖中心附近的候選地點（由 Google 提供）：
+    prompt = f"""你是一位專業的全球旅遊導遊，精通世界各地的熱門景點與當地文化。以下是目前搜尋區域（經緯度：{lat}, {lng}）附近的候選地點清單：
 
 {candidate_json}
 
-使用者的需求是：「{user_prompt if user_prompt else '請推薦高評分且值得一訪的' + type_label}」
-行程類型：{type_label}
+使用者的具體需求是：「{user_prompt if user_prompt else '請從中挑選最佳的' + type_label}」
+
+請確保推薦的地點與候選地點清單中的地理座標一致。如果候選清單位於東京，請不要推薦台北的地點。
 
 請從名單中挑選出最符合需求的 {max_recommend} 個地點。按「推薦程度」由高到低排序。
-請為每個地點生成一個推薦理由（15 字以內，繁體中文），以及 2~3 個短標籤（例如：#在地激推、#網美必訪）。
+請為每個地點生成一個推薦理由（15 字以內，繁體中文），以及 2~3 個短標籤（例如：#在地激推、#必訪地標）。
 
 輸出格式必須嚴格遵守以下 JSON 陣列，不要有任何 markdown 或說明文字：
 [

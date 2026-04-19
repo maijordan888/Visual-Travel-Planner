@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Sparkles, Loader2, Calendar, Compass } from 'lucide-react';
-import { APIProvider, Map, AdvancedMarker, useMap, Pin } from '@vis.gl/react-google-maps';
+import { Map, AdvancedMarker, useMap, Pin } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import ExplorePanel from './ExplorePanel';
 import './MapModal.css';
 import { api } from '../api';
+import { useTripStore } from '../store/useTripStore';
 
 const defaultCenter = { lat: 25.033, lng: 121.565 }; // 台北 101
 
@@ -186,6 +187,12 @@ function ItineraryTab({ prevPlace, nextPlace, onAddNode }) {
 export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
   const [activeTab, setActiveTab] = useState('itinerary');
 
+  // 從 store 取得當前 day 的 startLocation 作為動態中心
+  const { activeDay, dayConfigs, nodesByDay, tripTitle } = useTripStore();
+  const currentDayConfig = dayConfigs[activeDay] || dayConfigs[1];
+  const currentDayNodes = nodesByDay[activeDay] || [];
+  const firstConfirmed = currentDayNodes.find(n => n.status === 'confirmed');
+
   // 地圖共用狀態
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [itineraryCenter, setItineraryCenter] = useState(defaultCenter);
@@ -194,10 +201,6 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
   // 探索面板的 Marker 狀態
   const [exploreMarkers, setExploreMarkers] = useState([]);
   const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
-
-  const apiKey =
-    import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_dummy_key_to_prevent_crash_12345';
-
   // 行程 Tab：PlacePicker 選地點時更新地圖中心
   const [itinerarySelectedPlace, setItinerarySelectedPlace] = useState(null);
   const [aiRecommendations, setAiRecommendations] = useState([]);
@@ -211,7 +214,8 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
         const results = await api.getAIRecommendations(
           prevPlace || '目前位置',
           nextPlace || '下個預定點',
-          3
+          3,
+          tripTitle // 傳入行程標題作為 Context
         );
         setAiRecommendations(results);
       } catch (e) {
@@ -221,6 +225,93 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     }
     loadAI();
   }, [prevPlace, nextPlace]);
+
+  // 動態地圖中心：嘗試用 startLocation -> tripTitle -> 保持現況
+  useEffect(() => {
+    if (!window.google?.maps?.Geocoder) return;
+    const geocoder = new window.google.maps.Geocoder();
+    
+    const tryGeocode = (address) => {
+      return new Promise((resolve) => {
+        // 1. 嘗試原生的 Geocoder
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            const loc = results[0].geometry.location;
+            resolve({ lat: loc.lat(), lng: loc.lng() });
+            return;
+          }
+          
+          // 2. 如果 Geocoder 失敗（例如沒啟用 API），嘗試 Places Service (findPlaceFromQuery)
+          if (window.google?.maps?.places) {
+            const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+            service.findPlaceFromQuery({
+              query: address,
+              fields: ['geometry']
+            }, (results, status) => {
+              if (status === 'OK' && results?.[0]?.geometry?.location) {
+                const loc = results[0].geometry.location;
+                resolve({ lat: loc.lat(), lng: loc.lng() });
+              } else {
+                resolve(null);
+              }
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    };
+
+    async function initCenter() {
+      console.log(`[MapModal] Initializing center. StartLocation: ${currentDayConfig?.startLocation}, TripTitle: ${tripTitle}`);
+      
+      // 1. 優先用當日出發地
+      if (currentDayConfig?.startLocation) {
+        const loc = await tryGeocode(currentDayConfig.startLocation);
+        if (loc) {
+          setMapCenter(loc);
+          setItineraryCenter(loc);
+          return;
+        }
+      }
+
+      // 2. 其次用第一個確認點
+      if (firstConfirmed?.selected_place_name) {
+        const loc = await tryGeocode(firstConfirmed.selected_place_name);
+        if (loc) {
+          setMapCenter(loc);
+          setItineraryCenter(loc);
+          return;
+        }
+      }
+
+      // 3. 再其次用行程標題 (提取地名，如 "東京三日遊" -> "東京")
+      if (tripTitle && tripTitle !== '未命名行程') {
+        const hint = tripTitle.replace(/行程|三日遊|自由行|之旅/g, '').substring(0, 10);
+        const loc = await tryGeocode(hint);
+        if (loc) {
+          setMapCenter(loc);
+          setItineraryCenter(loc);
+          return;
+        }
+      }
+    }
+
+    initCenter();
+  }, [currentDayConfig?.startLocation, firstConfirmed?.selected_place_name, tripTitle]);
+
+  // 自動聚焦 PlacePicker
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const pickerEl = placePickerRef.current;
+      if (pickerEl) {
+        // PlacePicker Web Component 的 shadow DOM 內有一個 input
+        const input = pickerEl.shadowRoot?.querySelector('input') || pickerEl.querySelector('input');
+        input?.focus();
+      }
+    }, 300); // 等 modal 動畫完成
+    return () => clearTimeout(timer);
+  }, []);
 
   const handlePlaceChange = async () => {
     const place = placePickerRef.current?.value;
@@ -272,7 +363,6 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
           <X size={20} />
         </button>
 
-        <APIProvider apiKey={apiKey} version="beta" libraries={['places']}>
           <div className="modal-layout">
             {/* 左半部：Tabs + 內容 */}
             <div className="modal-sidebar">
@@ -393,7 +483,6 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
               />
             </div>
           </div>
-        </APIProvider>
       </div>
     </div>
   );

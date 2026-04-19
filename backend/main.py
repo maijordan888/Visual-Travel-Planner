@@ -41,6 +41,7 @@ class RecommendRequest(BaseModel):
     prev_place: str
     next_place: str
     count: int = 3
+    trip_context: Optional[str] = ""
 
 class PlacesSearchRequest(BaseModel):
     lat: float
@@ -74,7 +75,7 @@ def calculate_travel_time(req: DirectionsRequest, db: Session = Depends(get_db))
 @app.post("/recommend-places")
 def get_ai_recommendations(req: RecommendRequest):
     """呼叫 AI 取得兩點之間的推薦點 (含建議停留時間) - 舊版，保留相容"""
-    results = services.recommend_places(req.prev_place, req.next_place, req.count)
+    results = services.recommend_places(req.prev_place, req.next_place, req.count, req.trip_context)
     return {"recommendations": results}
 
 # --- NEW: Places API Endpoints ---

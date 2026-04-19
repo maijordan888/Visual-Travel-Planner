@@ -110,16 +110,15 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
       if (results.length === 0) {
         setError('此區域暫無符合條件的建議，可嘗試調大範圍或更換類型。');
       }
-      } catch (e) {
+      // 使用即時 results 變數（避免 stale closure），有結果就收合
+      if (results && results.length > 0) {
+        setTimeout(() => setIsFormCollapsed(true), 150);
+      }
+    } catch (e) {
       console.error(e);
       setError('搜尋失敗，請確認後端服務是否正常運行。');
     } finally {
       setIsLoading(false);
-      // 如果有結果，將搜尋介面自動壓縮
-      if (places && places.length > 0 || (subMode === 'google' && !error)) {
-          // Delay a bit so user can feel it
-          setTimeout(() => setIsFormCollapsed(true), 100);
-      }
     }
   }, [mapCenter, subMode, placeType, radius, keyword, minRating, userPrompt]);
 
@@ -298,8 +297,18 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
 
       {/* Results Area */}
       <div className="results-area">
-        {/* Loading Skeleton */}
-        {isLoading && (
+        {/* Loading: AI 模式用 Overlay，Google 模式用 Skeleton */}
+        {isLoading && subMode === 'ai' && (
+          <div className="ai-loading-overlay">
+            <div className="ai-loading-animation">
+              <Sparkles size={36} className="ai-loading-sparkle" />
+              <p className="ai-loading-text">🧠 Gemini 正在分析周邊景點...</p>
+              <p className="ai-loading-sub">根據你的偏好智能排序中</p>
+              <div className="ai-loading-bar"><div className="ai-loading-bar-inner" /></div>
+            </div>
+          </div>
+        )}
+        {isLoading && subMode === 'google' && (
           <div className="skeleton-list">
             {[1, 2, 3].map(i => (
               <div key={i} className="skeleton-card">
