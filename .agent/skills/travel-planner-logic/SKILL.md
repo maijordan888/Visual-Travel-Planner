@@ -91,6 +91,25 @@
 - 選擇地點後透過 `handleStartPlaceChange` / `handleEndPlaceChange` 更新 `dayConfig.startLocation` / `dayConfig.endLocation`。
 - 外包 `.place-picker-wrapper` 提供一致的 border/focus 樣式。
 
+### MapModal 功能分頁
+`MapModal` 包含兩個核心分頁，操作前請確認目的再選擇正確 Tab：
+
+1. **行程規劃 Tab (ItineraryTab)**
+   - 直接搜尋特定地點，或查看起終點之間的 AI 順路推薦。
+   - 適用於：已知要去哪裡，或需要 AI 填補行程空隙。
+
+2. **探索與推薦 Tab (ExplorePanel)**
+   - 以地圖中心為基準，搜尋周邊景點/餐廳。
+   - **Google 模式**：關鍵字 + 類別分組搜尋。
+   - **AI 模式**：透過自然語言 Prompt 讓 Gemini 過濾推薦地點。
+   - 適用於：抵達某處後探索附近，或有特殊需求（如：慶生餐廳）。
+
+**交互細節**：
+- 搜尋結果出現後，搜尋面板自動收縮（可 hover/click 頂部提示條展開）。
+- 列表 hover 時地圖 Marker 會變色放大（雙向同步）。
+- 所有地點加入行程皆透過 `useTripStore` 的 `addOptionToNode` 動作。
+- 地點資料結構必須包含：`id`, `name`, `rating`, `lat`, `lng`。
+
 ### 動態地圖中心 (MapModal)
 - `MapModal` 啟動時依序嘗試以下來源決定初始中心：
   1. **prevPlace**（前一個景點名稱）— 讓地圖跟隨行程進度
@@ -126,13 +145,16 @@
 - **Transport Time Stale Request**: `ItineraryNode` 的 transport time useEffect 使用 `cancelled` flag 防止 component unmount 後的 stale state 更新。
 - **Photo URL 建構**: `ExplorePanel` 使用 `window.__GOOGLE_MAPS_API_KEY__`（由 `App.jsx` 設定）建構 Places Photo URL。`ItineraryNode` 內含 `onError` fallback 隱藏載入失敗的圖片。
 - **addOptionToNode photo_url 保存**: store 的 `addOptionToNode` 會將 `place.photo_url` 存入節點資料，持久化後自動保留。
+- **終點交通時間計算 (END_NODE)**: 為了讓終點 (回程飯店) 也能動態計算最後一哩路的交通時間，`App.jsx` 渲染 `isEndEndpoint` 時會傳入一個虛擬的 `nodeData` (`id: 'END_NODE'`)。`useTripStore` 的 `updateNode` 方法會攔截 `id === 'END_NODE'`，將交通時間與模式更新存儲到 `dayConfigs[activeDay].endNodeData` 中，並由 `App.jsx` 讀取來精準推算回程時間。
+- **AI 推薦基準點保護**: `MapModal` 的 AI 推薦如果偵測不到 `prevPlace` 且無 `startLocation` 或行程標題，會直接顯示提示要求使用者先提供定位基準，避免盲目向後端發送請求導致定位偏移。
 
 ## 7. 開發注意事項 (Handover Notes)
 - **狀態更新**: `nodesByDay` 是以天數為 Key 的物件，操作時需確保 Immutability。持久化後，初始 state 只在 localStorage 為空時使用。
 - **UI 捲動**: 新增節點後已實作自動捲動（Auto-scroll），利用 `lastNodeRef` + `scrollIntoView`。
 - **API 欄位**: `Places API (New)` 需明確指定 `fetchFields`，否則會導致資料缺失。
 - **清除持久化資料**: 若需重置測試資料，在 console 執行 `localStorage.removeItem('travel-planner-store')`。
-- **節點間距**: `App.jsx` 中每個節點容器使用 `marginBottom: 32px` 防止 "+" 按鈕與下一個交通選擇器重疊。
+- **節點間距與新增按鈕**: `App.jsx` 中每個節點容器的 `marginBottom` 為 `64px`，使版面不會過於擁擠。而 `+` 號按鈕則精確對齊於時間軸線上 (`left: 86px`, `transform: translateX(-50%)`) 且置於兩個節點正中間 (`bottom: -32px`)。
+- **編輯行程防呆與優化**: 行程標題與日期編輯具有 `onBlur` 與 Enter 鍵自動儲存功能。日期選擇器加入 `min` 與 `max` 限制，防止使用者選出回程日期早於出發日期的無效行程。
 
 ## 8. 測試路徑 (Testing Path)
 1. 確保 `npm run dev` (Frontend) 與 `uvicorn` (Backend) 皆在運行中。
@@ -143,3 +165,9 @@
 6. 測試「刪除天數」— 確認後續天數正確遞補、endDate 更新。
 7. 測試「切換備選方案」— 確認原選擇放回 options、新選擇從 options 移除。
 8. 測試「交通時間」— 確認 API 呼叫正常、Loading 狀態顯示。
+
+## 9. 專案維護與快速啟動 (Maintenance & Quick Start)
+- **快速啟動方式 (推薦)**: 根目錄已配置 `package.json`，使用 `concurrently` 同時啟動前後端。
+- **啟動指令**: 在根目錄執行 `npm run dev`。
+  - 前後端 Log 會標記顏色並整合在同一個視窗。
+- **備用方式**: 根目錄提供 `run_dev.bat`，可分開視窗啟動（適合需要獨立視窗除錯時使用）。

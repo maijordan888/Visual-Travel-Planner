@@ -14,11 +14,11 @@ function MapHandler({ center, itineraryPlace, exploreMarkers, hoveredPlaceId, on
   const map = useMap('MAIN_MAP');
 
   useEffect(() => {
-    if (map && center) {
-      map.panTo(center);
+    if (map && center?.lat && center?.lng) {
+      map.panTo({ lat: center.lat, lng: center.lng });
       if (itineraryPlace) map.setZoom(15);
     }
-  }, [map, center, itineraryPlace]);
+  }, [map, center?.lat, center?.lng, itineraryPlace]);
 
   // 每次地圖 idle 時回報中心點（供 ExplorePanel 使用）
   useEffect(() => {
@@ -68,120 +68,6 @@ function MapHandler({ center, itineraryPlace, exploreMarkers, hoveredPlaceId, on
   );
 }
 
-// ─── ItineraryTab：原有的行程規劃 (搜尋地點 + AI 順路推薦) ───────────────────
-function ItineraryTab({ prevPlace, nextPlace, onAddNode }) {
-  const [center, setCenter] = useState(defaultCenter);
-  const [selectedPlace, setSelectedPlace] = useState(null);
-  const [aiRecommendations, setAiRecommendations] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const placePickerRef = useRef(null);
-
-  useEffect(() => {
-    async function loadAI() {
-      setIsLoading(true);
-      try {
-        const results = await api.getAIRecommendations(
-          prevPlace || '目前位置',
-          nextPlace || '下個預定點',
-          3
-        );
-        setAiRecommendations(results);
-      } catch (e) {
-        console.error('Failed to load AI recommendations', e);
-      }
-      setIsLoading(false);
-    }
-    loadAI();
-  }, [prevPlace, nextPlace]);
-
-  const handlePlaceChange = async () => {
-    const place = placePickerRef.current?.value;
-    if (!place) return;
-    try {
-      await place.fetchFields({ fields: ['displayName', 'location', 'rating', 'id'] });
-    } catch (error) {
-      console.error('Failed to fetch place details:', error);
-      alert(
-        '無法取得地點資訊：您的 API Key 尚未啟動「Places API (New)」。\n請至 Google Cloud Console 啟用該 API 以正常使用地點搜尋功能。'
-      );
-    }
-    if (place.location) {
-      const loc = { lat: place.location.lat(), lng: place.location.lng() };
-      setCenter(loc);
-      setSelectedPlace({
-        id: place.id,
-        name: place.displayName || 'Unknown Place',
-        rating: place.rating || 4.5,
-        durationMins: 90,
-        tag: '從地圖搜尋選擇',
-      });
-    }
-  };
-
-  return {
-    jsx: (
-      <>
-        <div className="search-box">
-          <Search size={18} color="#6b7280" className="search-icon" />
-          <PlacePicker
-            ref={placePickerRef}
-            onPlaceChange={handlePlaceChange}
-            placeholder="地圖搜尋景點或餐廳..."
-            style={{ width: '100%', border: 'none', background: 'transparent' }}
-          />
-        </div>
-
-        {selectedPlace && (
-          <div className="rec-card selected-card">
-            <div className="rec-info">
-              <div className="top-row">
-                <span className="rec-name">{selectedPlace.name}</span>
-                <span className="rec-rating">⭐ {selectedPlace.rating}</span>
-              </div>
-              <span className="rec-tag">{selectedPlace.tag}</span>
-            </div>
-            <button className="btn primary small" onClick={() => onAddNode(selectedPlace)}>
-              確認加入
-            </button>
-          </div>
-        )}
-
-        <div className="ai-recommend-section">
-          <h4 className="section-title">
-            <Sparkles size={16} color="var(--primary)" />
-            AI 智能推薦 (分析起終點沿途)
-          </h4>
-          <div className="rec-list">
-            {isLoading ? (
-              <div className="loading-placeholder">
-                <Loader2 size={28} className="animate-spin" style={{ color: 'var(--primary)' }} />
-                <p>AI 正在計算交通順路度與評價...</p>
-              </div>
-            ) : (
-              aiRecommendations.map(place => (
-                <div key={place.id} className="rec-card">
-                  <div className="rec-info">
-                    <div className="top-row">
-                      <span className="rec-name">{place.name}</span>
-                      <span className="rec-rating">⭐ {place.rating}</span>
-                    </div>
-                    <span className="rec-tag">{place.tag}</span>
-                    <span className="rec-dur">建議停留：{place.durationMins} 分鐘</span>
-                  </div>
-                  <button className="btn outline small" onClick={() => onAddNode(place)}>
-                    加入
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </>
-    ),
-    center,
-    markerPlace: selectedPlace,
-  };
-}
 
 // ─── Main MapModal ────────────────────────────────────────────────────────────
 export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
@@ -210,10 +96,27 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
   useEffect(() => {
     async function loadAI() {
       setIsAiLoading(true);
+      
+      const p = prevPlace || currentDayConfig?.startLocation || (tripTitle !== '未命名行程' ? tripTitle : null);
+      const n = nextPlace || currentDayConfig?.endLocation || '下個預定點';
+
+      if (!p) {
+        setAiRecommendations([{
+          id: 'err-no-location',
+          name: '📍 請先設定「出發地」或修改「行程標題」',
+          rating: '-',
+          tag: '系統缺乏基準點，無法推薦',
+          durationMins: 0,
+          isErrorMsg: true
+        }]);
+        setIsAiLoading(false);
+        return;
+      }
+
       try {
         const results = await api.getAIRecommendations(
-          prevPlace || '目前位置',
-          nextPlace || '下個預定點',
+          p,
+          n,
           3,
           tripTitle // 傳入行程標題作為 Context
         );
@@ -224,10 +127,14 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
       setIsAiLoading(false);
     }
     loadAI();
-  }, [prevPlace, nextPlace]);
+  }, [prevPlace, nextPlace, currentDayConfig?.startLocation, currentDayConfig?.endLocation, tripTitle]);
+
+  const userInteractedRef = useRef(false);
 
   // 動態地圖中心：嘗試用 prevPlace -> startLocation -> tripTitle -> 保持現況
   useEffect(() => {
+    let active = true;
+
     if (!window.google?.maps?.Geocoder) return;
     const geocoder = new window.google.maps.Geocoder();
     
@@ -263,12 +170,13 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     };
 
     async function initCenter() {
+      if (userInteractedRef.current) return;
       console.log(`[MapModal] Initializing center. prevPlace: ${prevPlace}, StartLocation: ${currentDayConfig?.startLocation}, TripTitle: ${tripTitle}`);
       
       // 0. 最優先：使用前一個景點的位置（讓地圖跟隨行程進度）
       if (prevPlace) {
         const loc = await tryGeocode(prevPlace);
-        if (loc) {
+        if (active && loc && !userInteractedRef.current) {
           setMapCenter(loc);
           setItineraryCenter(loc);
           return;
@@ -276,9 +184,16 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
       }
 
       // 1. 其次用當日出發地
-      if (currentDayConfig?.startLocation) {
+      if (currentDayConfig?.startLat && currentDayConfig?.startLng) {
+        if (active && !userInteractedRef.current) {
+          const loc = { lat: currentDayConfig.startLat, lng: currentDayConfig.startLng };
+          setMapCenter(loc);
+          setItineraryCenter(loc);
+          return;
+        }
+      } else if (currentDayConfig?.startLocation) {
         const loc = await tryGeocode(currentDayConfig.startLocation);
-        if (loc) {
+        if (active && loc && !userInteractedRef.current) {
           setMapCenter(loc);
           setItineraryCenter(loc);
           return;
@@ -288,7 +203,7 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
       // 2. 再用第一個確認點
       if (firstConfirmed?.selected_place_name) {
         const loc = await tryGeocode(firstConfirmed.selected_place_name);
-        if (loc) {
+        if (active && loc && !userInteractedRef.current) {
           setMapCenter(loc);
           setItineraryCenter(loc);
           return;
@@ -299,7 +214,7 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
       if (tripTitle && tripTitle !== '未命名行程') {
         const hint = tripTitle.replace(/行程|三日遊|自由行|之旅/g, '').substring(0, 10);
         const loc = await tryGeocode(hint);
-        if (loc) {
+        if (active && loc && !userInteractedRef.current) {
           setMapCenter(loc);
           setItineraryCenter(loc);
           return;
@@ -308,7 +223,8 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     }
 
     initCenter();
-  }, [prevPlace, currentDayConfig?.startLocation, firstConfirmed?.selected_place_name, tripTitle]);
+    return () => { active = false; };
+  }, [prevPlace, currentDayConfig?.startLocation, currentDayConfig?.startLat, currentDayConfig?.startLng, firstConfirmed?.selected_place_name, tripTitle]);
 
   // 自動聚焦 PlacePicker
   useEffect(() => {
@@ -323,8 +239,9 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     return () => clearTimeout(timer);
   }, []);
 
-  const handlePlaceChange = async () => {
-    const place = placePickerRef.current?.value;
+  const handlePlaceChange = async (e) => {
+    userInteractedRef.current = true;
+    const place = e?.target?.value || placePickerRef.current?.value;
     if (!place) return;
     try {
       await place.fetchFields({ fields: ['displayName', 'location', 'rating', 'id'] });
@@ -451,11 +368,15 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
                                 <span className="rec-rating">⭐ {place.rating}</span>
                               </div>
                               <span className="rec-tag">{place.tag}</span>
-                              <span className="rec-dur">建議停留：{place.durationMins} 分鐘</span>
+                              {place.durationMins > 0 && (
+                                <span className="rec-dur">建議停留：{place.durationMins} 分鐘</span>
+                              )}
                             </div>
-                            <button className="btn outline small" onClick={() => onAddNode(place)}>
-                              加入
-                            </button>
+                            {!place.isErrorMsg && (
+                              <button className="btn outline small" onClick={() => onAddNode(place)}>
+                                加入
+                              </button>
+                            )}
                           </div>
                         ))
                       )}

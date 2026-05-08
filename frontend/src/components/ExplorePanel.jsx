@@ -68,8 +68,8 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   const placePickerRef = useRef(null);
 
-  const handleCenterChange = async () => {
-    const place = placePickerRef.current?.value;
+  const handleCenterChange = async (e) => {
+    const place = e?.target?.value || placePickerRef.current?.value;
     if (!place) return;
     try {
       await place.fetchFields({ fields: ['location'] });

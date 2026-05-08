@@ -100,14 +100,22 @@ export const useTripStore = create(
         
         const newDayConfigs = {};
         const newNodesByDay = {};
+        const day1End = state.dayConfigs[1]?.endLocation || '';
         for (let i = 1; i <= diffDays; i++) {
-            newDayConfigs[i] = state.dayConfigs[i] || {
-                startLocation: '',
-                endLocation: '',
-                startTime: '09:00',
-                maxReturnTime: '22:00',
-                autoUpdate: true
-            };
+            if (state.dayConfigs[i]) {
+                newDayConfigs[i] = state.dayConfigs[i];
+            } else {
+                // Day N Start = Day N-1 End（延續前一天路線）
+                // Day N End = Day 1 End（假設住同飯店）
+                const prevDayEnd = newDayConfigs[i - 1]?.endLocation || day1End;
+                newDayConfigs[i] = {
+                    startLocation: prevDayEnd,
+                    endLocation: day1End,
+                    startTime: '09:00',
+                    maxReturnTime: '22:00',
+                    autoUpdate: true
+                };
+            }
             newNodesByDay[i] = state.nodesByDay[i] || [];
         }
 
@@ -151,6 +159,17 @@ export const useTripStore = create(
 
       // 動作：更新某個節點的停留時間或交通方式
       updateNode: (id, updates) => set((state) => {
+        if (id === 'END_NODE') {
+           return {
+             dayConfigs: {
+               ...state.dayConfigs,
+               [state.activeDay]: { 
+                 ...state.dayConfigs[state.activeDay], 
+                 endNodeData: { ...(state.dayConfigs[state.activeDay].endNodeData || {}), ...updates } 
+               }
+             }
+           };
+        }
         const list = state.nodesByDay[state.activeDay] || [];
         return {
           nodesByDay: {
