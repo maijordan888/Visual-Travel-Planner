@@ -197,6 +197,8 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
 ## 10. Google Sheets 前端行程庫 Contract
 - `frontend/src/api.js` 提供 Sheets wrapper，沿用 `API_BASE` 與 JSON header：`listSheetTrips()`、`exportTripToSheet(tripId, payload)`、`importTripFromSheet(tripId)`、`deleteSheetTrip(tripId)`。
 - `TripLibraryModal` 是 v1 手動同步入口，UI 命名使用「行程庫 / 雲端行程」，不做自動同步或衝突合併。
+- 後端 `/sheets/*` endpoint 尚未完成時，`TripLibraryModal` 只顯示錯誤提示，不做前端 mock success。
 - export payload 使用 Phase 0 store contract：`meta.tripId`、`tripTitle`、`startDate`、`endDate`、`localLastModifiedUtc`、`sheetLastModifiedUtc`，以及 `dayConfigs`、`nodesByDay`。
 - export 成功後由 App 呼叫 `setSheetLastModified(last_modified_utc)`；import 成功後呼叫 `loadTripFromArchive(trip_data)`。
 - API path 固定為：`GET /sheets/trips`、`POST /sheets/export/{trip_id}`、`GET /sheets/import/{trip_id}`、`DELETE /sheets/trips/{trip_id}`。
+- UI 操作驗證步驟放在 `.agent/workflows/trip-library-cloud-sync.md`。
