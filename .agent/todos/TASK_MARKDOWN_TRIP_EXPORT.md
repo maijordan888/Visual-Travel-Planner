@@ -17,6 +17,7 @@
 - Sheet 交通欄位語意是 `Transport From Previous (mins)`，不是前往下一站。
 - regular 節點可取得 `planned_arrival_time`、`planned_departure_time`、`transport_time_mins`。
 - 匯出資料可能同時包含 `PlaceID`、`Address`、`lat`、`lng`、`photo_url`、`rating`、`types`、`tags`。
+- 若景點有從 Google Maps / Places 取得的 `photo_url`，Markdown/PDF 應可輸出對應縮圖，增加旅遊雜誌感。
 - UI 目前已統一以 24 小時制 `HH:MM` 顯示行程時間，Markdown/PDF 也應保持同一格式。
 
 ## Goals
@@ -127,6 +128,8 @@ normalizeTripForExport(tripData, options)
 - 起點通常沒有 `transportFromPreviousMins`。
 - 終點應可顯示從最後一個景點到終點的交通時間。
 - `notes` 不存在時不輸出空區塊。
+- `photoUrl` 存在時，regular 景點優先輸出縮圖；起點/終點可支援圖片但不強制。
+- `photoUrl` 不存在或載入失敗時，不輸出破圖占位，改維持純文字資訊卡。
 - 缺地址或時間時仍可正常輸出，不產生 `undefined` 或破版欄位。
 
 ## Template Elements
@@ -140,7 +143,11 @@ normalizeTripForExport(tripData, options)
 - `renderDaySection(day)`
   - Day N、日期、每日起點、終點、當日節奏。
 - `renderTimelineItem(routePoint)`
-  - 到達/離開時間、地點、地址、停留時間、交通時間、備註。
+  - 到達/離開時間、地點、地址、停留時間、交通時間、備註與景點縮圖。
+- `renderPlaceImage(routePoint)`
+  - 若 `photoUrl` 存在，輸出 Markdown image 或 print view image block。
+  - 圖片 alt text 使用景點名稱，例如 `![清水寺](...)`。
+  - renderer 需提供選項控制是否輸出圖片，避免使用者在離線或列印情境想要純文字版。
 - `renderTransportBlock(routePoint)`
   - 從上一站前往此站的交通時間、交通模式與 Google Maps link。
 - `renderNotesBlock(notes)`
@@ -179,6 +186,8 @@ buildTripMarkdown(tripData, options)
 備註：...
 
 ### 10:20 抵達｜飯店名稱
+
+![飯店名稱](https://example.com/place-photo.jpg)
 
 - 地址：...
 - 停留：30 分鐘
@@ -233,6 +242,7 @@ buildTripMarkdown(tripData, options)
 - 大封面標題，但不要犧牲第一頁資訊量。
 - 每日章節像小型旅遊導覽。
 - 景點段落保留清楚時間軸。
+- 有 Google Maps / Places 縮圖的景點應輸出圖片，讓文件接近旅遊雜誌閱讀感。
 - 地址、交通、備註採資訊卡式排版。
 - 附錄可放在文件最後，不打斷閱讀。
 - 不使用目前網頁上的功能鍵或編輯 UI 裝飾。
@@ -252,6 +262,7 @@ buildTripMarkdown(tripData, options)
 3. 讓使用者確認：
    - 版面密度是否適合手機。
    - 雜誌感是否太重或太花。
+   - 景點縮圖比例、大小與出現頻率是否剛好。
    - 景點資訊與 notes 是否好讀。
    - 附錄資訊是否太多或太少。
    - 封面/背景圖是否需要保留。
@@ -332,6 +343,8 @@ normalizeTripForExport(tripData, options)
 - [ ] 每日起點、regular 景點、終點都會輸出。
 - [ ] `arrivalTime` / `departureTime` / `transportFromPreviousMins` 有輸出。
 - [ ] regular notes、start notes、end notes 都有輸出。
+- [ ] 有 `photoUrl` 的景點會輸出縮圖。
+- [ ] 沒有 `photoUrl` 或圖片載入失敗時，不顯示破圖或空白圖片區。
 - [ ] Sheet import validation warnings 可被提示或附在匯出 modal。
 - [ ] address、PlaceID、lat/lng 不因匯出遺失。
 - [ ] 沒有時間或地址的景點仍可輸出，不產生破版欄位。
