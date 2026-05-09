@@ -16,6 +16,19 @@ const getTripId = (trip) => trip.trip_id || trip.tripId || trip.id;
 const getTripTitle = (trip) => trip.trip_name || trip.tripTitle || trip.title || '未命名行程';
 const getLastModified = (trip) => trip.last_modified_utc || trip.sheetLastModifiedUtc || null;
 
+function summarizeNodes(nodesByDay = {}) {
+  return Object.values(nodesByDay).reduce((summary, nodes = []) => {
+    nodes.forEach((node) => {
+      if (node?.status === 'confirmed') {
+        summary.confirmed += 1;
+      } else if (node?.status === 'pending_options') {
+        summary.pending += 1;
+      }
+    });
+    return summary;
+  }, { confirmed: 0, pending: 0 });
+}
+
 function formatDateRange(trip) {
   const start = trip.start_date || trip.startDate;
   const end = trip.end_date || trip.endDate;
@@ -51,8 +64,8 @@ export default function TripLibraryModal({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
 
   const currentTripId = currentTrip?.meta?.tripId;
-  const currentNodeCount = useMemo(() => (
-    Object.values(currentTrip?.nodesByDay || {}).reduce((sum, nodes) => sum + nodes.length, 0)
+  const currentNodeSummary = useMemo(() => (
+    summarizeNodes(currentTrip?.nodesByDay)
   ), [currentTrip]);
 
   const loadTrips = async () => {
@@ -162,7 +175,12 @@ export default function TripLibraryModal({
           <div>
             <span className="trip-kicker">目前行程</span>
             <h3>{currentTrip?.meta?.tripTitle || '未命名行程'}</h3>
-            <p>{currentTrip?.meta?.startDate} ~ {currentTrip?.meta?.endDate} · {currentNodeCount} 個景點</p>
+            <p>
+              {currentTrip?.meta?.startDate} ~ {currentTrip?.meta?.endDate}
+              {' · '}
+              {currentNodeSummary.confirmed} 個已確認景點
+              {currentNodeSummary.pending > 0 && ` / ${currentNodeSummary.pending} 個待決定`}
+            </p>
             <p className="trip-muted">雲端更新：{formatModified(currentTrip?.meta?.sheetLastModifiedUtc)}</p>
           </div>
           <button className="btn primary" onClick={handleExport} disabled={isBusy}>
@@ -234,7 +252,7 @@ export default function TripLibraryModal({
                     <h4>{getTripTitle(trip)}</h4>
                     {isCurrentTrip && <span>目前</span>}
                   </div>
-                  <p>{formatDateRange(trip)} · {trip.days_count ?? trip.daysCount ?? '-'} 天 · {trip.node_count ?? trip.nodeCount ?? '-'} 個景點</p>
+                  <p>{formatDateRange(trip)} · {trip.days_count ?? trip.daysCount ?? '-'} 天 · {trip.node_count ?? trip.nodeCount ?? '-'} 個已確認景點</p>
                   <p className="trip-muted">雲端更新：{formatModified(getLastModified(trip))}</p>
                 </div>
                 <div className="trip-list-actions">
