@@ -157,6 +157,29 @@ def export_trip_to_sheets(trip_id: str, payload: schemas.TripExportPayload):
         raise HTTPException(status_code=502, detail=f"Google Sheets error: {exc}") from exc
 
 
+@app.get("/sheets/import/{trip_id}", response_model=schemas.SheetImportResponse)
+def import_trip_from_sheets(trip_id: str):
+    try:
+        return sheets_service.import_trip_from_sheet(trip_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except sheets_service.SheetsConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google Sheets error: {exc}") from exc
+
+
+@app.delete("/sheets/trips/{trip_id}", response_model=schemas.SheetDeleteResponse)
+def delete_trip_from_sheets(trip_id: str):
+    try:
+        sheets_service.delete_trip_sheet(trip_id)
+        return {"success": True}
+    except sheets_service.SheetsConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google Sheets error: {exc}") from exc
+
+
 # --- Trip Endpoints ---
 @app.post("/trips/", response_model=schemas.TripResponse)
 def create_trip(trip: schemas.TripCreate, db: Session = Depends(get_db)):

@@ -82,3 +82,10 @@ class SheetExportResponse(BaseModel):
     success: bool
     sheet_url: str
     last_modified_utc: str
+
+class SheetImportResponse(BaseModel):
+    trip_data: TripExportPayload
+    validation_errors: List[SheetValidationIssue] = Field(default_factory=list)
+
+class SheetDeleteResponse(BaseModel):
+    success: bool

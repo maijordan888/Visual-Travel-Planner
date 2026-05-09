@@ -202,3 +202,8 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
 - export 成功後由 App 呼叫 `setSheetLastModified(last_modified_utc)`；import 成功後呼叫 `loadTripFromArchive(trip_data)`。
 - API path 固定為：`GET /sheets/trips`、`POST /sheets/export/{trip_id}`、`GET /sheets/import/{trip_id}`、`DELETE /sheets/trips/{trip_id}`。
 - UI 操作驗證步驟放在 `.agent/workflows/trip-library-cloud-sync.md`。
+
+### Google Sheets import/delete implementation notes
+- Backend `/sheets/*` now supports list/export/import/delete. `TripLibraryModal` uses real API results and does not mock success.
+- Visible `{trip_id}` sheets contain only regular itinerary place rows. Start/end locations and `dayConfigs` are stored in internal `__TRIP_METADATA__`, so manual editors do not confuse endpoints with regular places.
+- Import validation keeps v1 conservative: PlaceID is authoritative when present; rows without PlaceID are imported by name only and return a warning, with no automatic re-geocode. Invalid time formats and departure-before-arrival also return validation warnings.
