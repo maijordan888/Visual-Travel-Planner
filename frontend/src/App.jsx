@@ -490,7 +490,7 @@ export default function App() {
           <section className={`itinerary-timeline glass-panel ${hasOvertimeWarning ? 'timeline-overtime-warning' : ''}`}>
             {hasOvertimeWarning && (
               <div className="global-warning-banner">
-                ?? 銵?蝮賣???質??粹??蝺?隢矽?湔暺????? (API ?芸??湔???岫蝞?閫貊甇方郎??
+                行程時間可能超過最晚回程，請檢查停留時間或交通時間（API 時間可能為預估值）。
               </div>
             )}
 
@@ -509,7 +509,7 @@ export default function App() {
                 }}
                 onNotesChange={(notes) => setDayConfig({ startNotes: notes })}
               />
-              <div style={{ position: 'absolute', bottom: '-32px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
+              <div style={{ position: 'absolute', bottom: '-52px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
                 <button onClick={() => useTripStore.getState().insertEmptyNode('START')} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="新增第一個景點">
                   <Plus size={16} />
                 </button>
@@ -530,7 +530,7 @@ export default function App() {
                     onOpenModal={() => setIsModalOpen({ nodeId: node.id, prevPlace, nextPlace })}
                     isOvertime={hasOvertimeWarning && i === 1} // 璅⊥頞?蝭暺?
                   />
-                  <div style={{ position: 'absolute', bottom: '-32px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
+                  <div style={{ position: 'absolute', bottom: '-52px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
                     <button onClick={() => useTripStore.getState().insertEmptyNode(node.id)} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="在後面新增景點">
                       <Plus size={16} />
                     </button>

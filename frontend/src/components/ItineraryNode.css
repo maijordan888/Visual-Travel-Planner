@@ -288,7 +288,7 @@
 }
 .rating {
     font-weight: 600;
-    color: #fbbf24;
+    color: var(--primary);
     font-size: 0.95rem;
     white-space: nowrap;
 }

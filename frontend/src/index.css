@@ -417,26 +417,25 @@ body {
 
 /* Annotations & Overtime Warnings */
 .timeline-overtime-warning {
-  background: rgba(254, 226, 226, 0.5) !important; /* light red tinted background */
-  border-color: #fca5a5;
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.15) !important;
+  border: 2px solid #fb7185;
+  box-shadow: 0 6px 20px rgba(251, 113, 133, 0.14) !important;
   transition: all 0.3s ease;
 }
 
 .global-warning-banner {
   position: relative;
   z-index: 2;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--surface-bg-strong);
+  color: #e25563;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid #fecaca;
+  border: 1px solid rgba(251, 113, 133, 0.45);
   margin-bottom: 24px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.1);
+  box-shadow: var(--surface-shadow);
   animation: slideDown 0.3s ease-out;
 }
 
