@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Cloud, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
@@ -25,41 +25,38 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTripLibraryOpen, setIsTripLibraryOpen] = useState(false);
   const [isEditingTrip, setIsEditingTrip] = useState(false);
+  const [tripDraft, setTripDraft] = useState(null);
+  const [tripEditError, setTripEditError] = useState('');
   const [confirmingDeleteDayId, setConfirmingDeleteDayId] = useState(null);
   const days = Object.keys(dayConfigs).map(Number).sort((a, b) => a - b);
   const lastNodeRef = useRef(null);
   const prevNodeCountRef = useRef(dailyNodes.length);
   const startPickerRef = useRef(null);
   const endPickerRef = useRef(null);
+  const currentTripDraft = tripDraft || { title: tripTitle, start: startDate, end: endDate };
 
   const [startPickerKey, setStartPickerKey] = useState(Date.now());
   const [endPickerKey, setEndPickerKey] = useState(Date.now() + 1);
   const [isStartFocused, setIsStartFocused] = useState(false);
   const [isEndFocused, setIsEndFocused] = useState(false);
+  const tripNodeSummary = useMemo(() => (
+    Object.values(nodesByDay).reduce((summary, nodes = []) => {
+      nodes.forEach((node) => {
+        if (node?.status === 'confirmed') summary.confirmed += 1;
+        if (node?.status === 'pending_options') summary.pending += 1;
+      });
+      return summary;
+    }, { confirmed: 0, pending: 0 })
+  ), [nodesByDay]);
+  const hasLocalChanges = Boolean(
+    localLastModifiedUtc
+      && (!sheetLastModifiedUtc || new Date(localLastModifiedUtc) > new Date(sheetLastModifiedUtc))
+  );
+  const syncLabel = sheetLastModifiedUtc
+    ? (hasLocalChanges ? '本機有未儲存變更' : '已同步到雲端')
+    : '尚未儲存到雲端';
 
-  const currentTripPayload = useMemo(() => ({
-    meta: {
-      tripId,
-      tripTitle,
-      startDate,
-      endDate,
-      localLastModifiedUtc,
-      sheetLastModifiedUtc,
-    },
-    dayConfigs,
-    nodesByDay,
-  }), [
-    tripId,
-    tripTitle,
-    startDate,
-    endDate,
-    localLastModifiedUtc,
-    sheetLastModifiedUtc,
-    dayConfigs,
-    nodesByDay,
-  ]);
-
-  // Auto-scroll: 當新增節點後捲動到最後新增的節點
+  // Auto-scroll: ?嗆憓?暺??脣??唳?敺憓?蝭暺?
   useEffect(() => {
     if (dailyNodes.length > prevNodeCountRef.current && lastNodeRef.current) {
       lastNodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -67,9 +64,9 @@ export default function App() {
     prevNodeCountRef.current = dailyNodes.length;
   }, [dailyNodes.length]);
 
-  // 模擬超時檢查機制 (此處於前端做一個簡化的運算演示)
-  // 若某節點標記為 isWarning = true，整列背景將有變化
-  const hasOvertimeWarning = dailyNodes.some(n => n.id === 'n2'); // 這裡暫時 hardcode 觸發警告的條件供視覺展示
+  // 璅⊥頞?瑼Ｘ璈 (甇方??澆?蝡臬?銝?陛????瞍內)
+  // ?交?蝭暺?閮 isWarning = true嚗???臬?????
+  const hasOvertimeWarning = dailyNodes.some(n => n.id === 'n2'); // ?ㄐ?急? hardcode 閫貊霅血???隞嗡?閬死撅內
 
   const handleStartPlaceChange = async () => {
     const place = startPickerRef.current?.value;
@@ -105,7 +102,7 @@ export default function App() {
     }
   };
 
-  // 點擊外部時，關閉 Focus 狀態，顯示 Overlay
+  // 暺?憭???? Focus ???憿舐內 Overlay
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.start-picker-container')) setIsStartFocused(false);
@@ -115,7 +112,7 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 當 Focus 狀態開啟時，自動聚焦 PlacePicker 的內部 input
+  // ??Focus ?????嚗????PlacePicker ???input
   useEffect(() => {
     if (isStartFocused && startPickerRef.current) {
       setTimeout(() => startPickerRef.current.shadowRoot?.querySelector('input')?.focus(), 50);
@@ -128,7 +125,7 @@ export default function App() {
     }
   }, [isEndFocused]);
 
-  // 切換天數時，重置 Picker Key 確保它完全清空，並且取消 Focus 狀態
+  // ??憭拇???蔭 Picker Key 蝣箔?摰??冽?蝛綽?銝虫??? Focus ???
   useEffect(() => {
     setStartPickerKey(Date.now() + 2);
     setEndPickerKey(Date.now() + 3);
@@ -145,12 +142,12 @@ export default function App() {
       setConfirmingDeleteDayId(null);
     } else {
       setConfirmingDeleteDayId(day);
-      // 3秒後自動重設確認狀態
+      // 3蝘??芸??身蝣箄????
       setTimeout(() => setConfirmingDeleteDayId(null), 3000);
     }
   };
 
-  // 時間計算輔助函式
+  // ??閮?頛?賢?
   const addMinutesToTime = (timeStr, mins) => {
     const [h, m] = timeStr.split(':').map(Number);
     const date = new Date();
@@ -158,71 +155,186 @@ export default function App() {
     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
-  // 渲染時計算時間軸
+  const startEditingTrip = () => {
+    setTripDraft({ title: tripTitle, start: startDate, end: endDate });
+    setTripEditError('');
+    setIsEditingTrip(true);
+  };
+
+  const cancelTripEdit = () => {
+    setTripDraft(null);
+    setTripEditError('');
+    setIsEditingTrip(false);
+  };
+
+  const applyTripEdit = () => {
+    const nextTitle = currentTripDraft.title?.trim() || '未命名行程';
+    const nextStart = currentTripDraft.start;
+    const nextEnd = currentTripDraft.end;
+    if (!nextStart || !nextEnd) {
+      setTripEditError('請先選擇開始與結束日期');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextStart) || !/^\d{4}-\d{2}-\d{2}$/.test(nextEnd)) {
+      setTripEditError('日期格式請使用 YYYY-MM-DD');
+      return;
+    }
+    if (new Date(nextEnd) < new Date(nextStart)) {
+      setTripEditError('結束日期不能早於開始日期');
+      return;
+    }
+    if (nextTitle !== tripTitle) setTripTitle(nextTitle);
+    if (nextStart !== startDate || nextEnd !== endDate) setTripDates(nextStart, nextEnd);
+    setTripDraft(null);
+    setTripEditError('');
+    setIsEditingTrip(false);
+  };
+
+  const currentTripPayload = useMemo(() => {
+    const nodesByDayForExport = Object.fromEntries(
+      Object.entries(nodesByDay).map(([day, nodes = []]) => {
+        const config = dayConfigs[day] || dayConfigs[Number(day)] || {};
+        let refTime = config.startTime || '09:00';
+        const enrichedNodes = nodes.map((node) => {
+          const transportMins = node.manual_transport_time ?? node.auto_transport_time ?? 0;
+          const arrivalTime = addMinutesToTime(refTime, transportMins);
+          const stayDuration = node.planned_stay_duration || 0;
+          const departureTime = addMinutesToTime(arrivalTime, stayDuration);
+          refTime = departureTime;
+          return {
+            ...node,
+            planned_arrival_time: arrivalTime,
+            planned_departure_time: departureTime,
+            transport_time_mins: transportMins,
+          };
+        });
+        return [day, enrichedNodes];
+      })
+    );
+
+    return {
+      meta: {
+        tripId,
+        tripTitle,
+        startDate,
+        endDate,
+        localLastModifiedUtc,
+        sheetLastModifiedUtc,
+      },
+      dayConfigs,
+      nodesByDay: nodesByDayForExport,
+    };
+  }, [
+    tripId,
+    tripTitle,
+    startDate,
+    endDate,
+    localLastModifiedUtc,
+    sheetLastModifiedUtc,
+    dayConfigs,
+    nodesByDay,
+  ]);
+
+  // 皜脫???蝞??遘
   let currentRefTime = dayConfig.startTime;
   const nodesWithCalculatedTimes = dailyNodes.map((node, i) => {
-    // 取得交通時間 (手動優先，其次自動)
+    // ??鈭日???(???芸?嚗甈∟??
     const transport = node.manual_transport_time ?? node.auto_transport_time ?? 0;
     const arrivalTime = addMinutesToTime(currentRefTime, transport);
-    // 更新下一個節點的參考時間 (抵達 + 停留)
+    // ?湔銝???暺?????(?菟? + ??)
     currentRefTime = addMinutesToTime(arrivalTime, node.planned_stay_duration || 0);
     return { ...node, arrivalTime };
   });
 
-  // 計算終點時間 (最後一個節點到終點飯店)
+  // 閮?蝯??? (?敺???暺蝯?憌臬?)
   const endNodeTransport = dayConfig.endNodeData?.manual_transport_time ?? dayConfig.endNodeData?.auto_transport_time ?? 0;
   const finalEndpointTime = addMinutesToTime(currentRefTime, endNodeTransport);
 
   return (
     <APIProvider apiKey={apiKey} version="beta" libraries={['places']}>
       <div className="app-container">
-        {/* 左方天數導覽 */}
+        {/* 撌行憭拇撠汗 */}
         <aside className="days-sidebar glass-panel">
           {isEditingTrip ? (
             <div 
               style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                  setIsEditingTrip(false);
-                }
-              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  setIsEditingTrip(false);
+                  applyTripEdit();
                 }
+                if (e.key === 'Escape') cancelTripEdit();
               }}
             >
               <input
                 type="text"
                 autoFocus
-                value={tripTitle}
-                onChange={(e) => setTripTitle(e.target.value)}
+                value={currentTripDraft.title}
+                onChange={(e) => setTripDraft((prev) => ({
+                  ...(prev || currentTripDraft),
+                  title: e.target.value,
+                }))}
                 style={{ width: '100%', padding: '4px' }}
               />
               <div style={{ display: 'flex', gap: '4px' }}>
                 <input
-                  type="date"
-                  value={startDate}
-                  max={endDate}
-                  onChange={(e) => setTripDates(e.target.value, endDate)}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="YYYY-MM-DD"
+                  value={currentTripDraft.start}
+                  onChange={(e) => setTripDraft((prev) => ({
+                    ...(prev || currentTripDraft),
+                    start: e.target.value,
+                  }))}
                   style={{ width: '50%', padding: '4px' }}
                 />
                 <input
-                  type="date"
-                  value={endDate}
-                  min={startDate}
-                  onChange={(e) => setTripDates(startDate, e.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="YYYY-MM-DD"
+                  value={currentTripDraft.end}
+                  onChange={(e) => setTripDraft((prev) => ({
+                    ...(prev || currentTripDraft),
+                    end: e.target.value,
+                  }))}
                   style={{ width: '50%', padding: '4px' }}
                 />
               </div>
-              <button className="btn outline" onClick={() => setIsEditingTrip(false)} style={{ width: '100%', justifyContent: 'center' }}>完成編輯</button>
+              {tripEditError && <p className="trip-edit-error">{tripEditError}</p>}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <button className="btn outline" onClick={cancelTripEdit} style={{ justifyContent: 'center', padding: '8px 10px' }}>取消</button>
+                <button className="btn primary" onClick={applyTripEdit} style={{ justifyContent: 'center', padding: '8px 10px' }}>套用</button>
+              </div>
             </div>
           ) : (
-            <div style={{ cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s', ':hover': { background: 'rgba(255,255,255,0.1)' } }} onClick={() => setIsEditingTrip(true)} title="點擊編輯行程資訊">
+            <div style={{ cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s', ':hover': { background: 'rgba(255,255,255,0.1)' } }} onClick={startEditingTrip} title="暺?蝺刻摩銵?鞈?">
               <h2 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>{tripTitle}</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>{startDate} ~ {endDate}</p>
             </div>
           )}
+
+          <section className={`trip-sync-card ${hasLocalChanges ? 'dirty' : ''}`}>
+            <div className="trip-sync-heading">
+              <Cloud size={17} />
+              <span>{syncLabel}</span>
+            </div>
+            <dl>
+              <div>
+                <dt>行程 ID</dt>
+                <dd>{tripId}</dd>
+              </div>
+              <div>
+                <dt>景點</dt>
+                <dd>{tripNodeSummary.confirmed} 已確認 / {tripNodeSummary.pending} 待決定</dd>
+              </div>
+              <div>
+                <dt>雲端時間</dt>
+                <dd>{sheetLastModifiedUtc ? new Date(sheetLastModifiedUtc).toLocaleString('zh-TW') : '尚未儲存'}</dd>
+              </div>
+            </dl>
+            <button className="btn primary trip-sync-save" onClick={() => setIsTripLibraryOpen(true)}>
+              <Cloud size={16} /> 儲存 / 載入
+            </button>
+          </section>
 
           {days.map(day => (
             <div
@@ -230,14 +342,14 @@ export default function App() {
               className={`day-tab ${activeDay === day ? 'active' : ''}`}
               onClick={() => setActiveDay(day)}
             >
-              <span>Day {day} • 行程安排</span>
+              <span>Day {day}</span>
               {days.length > 1 && (
                 <button
                   className={`day-delete-btn ${confirmingDeleteDayId === day ? 'confirming' : ''}`}
                   onClick={(e) => handleDeleteDay(e, day)}
-                  title={confirmingDeleteDayId === day ? "點擊再次確認刪除" : `刪除 Day ${day}`}
+                  title={confirmingDeleteDayId === day ? "暺??活蝣箄??芷" : `?芷 Day ${day}`}
                 >
-                  {confirmingDeleteDayId === day ? <span style={{ fontSize: '10px', fontWeight: 'bold' }}>確定？</span> : <Trash2 size={14} />}
+                  {confirmingDeleteDayId === day ? <span style={{ fontSize: '10px', fontWeight: 'bold' }}>確認</span> : <Trash2 size={14} />}
                 </button>
               )}
             </div>
@@ -255,25 +367,27 @@ export default function App() {
           </button>
           <button className="btn" style={{ justifyContent: 'center', background: 'var(--primary)', color: '#fff' }} onClick={() => {
             createNewTrip();
+            setTripDraft(null);
+            setTripEditError('');
             setIsEditingTrip(true);
           }}>
             新建行程
           </button>
         </aside>
 
-        {/* 右側主畫面 */}
+        {/* ?喳銝餌??*/}
         <main className="main-content">
-          {/* 每日基礎設定 */}
+          {/* 瘥?箇?閮剖? */}
           <section className="day-config-section glass-panel">
             <div className="input-group start-picker-container">
-              <label>出發地</label>
+              <label>起點</label>
               <div className="place-picker-wrapper">
                 <div style={{ display: (!dayConfig.startLocation || isStartFocused) ? 'block' : 'none' }}>
                   <PlacePicker
                     key={`start-${startPickerKey}`}
                     ref={startPickerRef}
                     onPlaceChange={handleStartPlaceChange}
-                    placeholder="搜尋出發地點..."
+                    placeholder="搜尋起點..."
                     style={{ width: '100%', border: 'none', background: 'transparent' }}
                   />
                 </div>
@@ -292,14 +406,14 @@ export default function App() {
               <input type="time" value={dayConfig.startTime} onChange={(e) => setDayConfig({ startTime: e.target.value })} />
             </div>
             <div className="input-group end-picker-container">
-              <label>回程地 (飯店)</label>
+              <label>終點</label>
               <div className="place-picker-wrapper">
                 <div style={{ display: (!dayConfig.endLocation || isEndFocused) ? 'block' : 'none' }}>
                   <PlacePicker
                     key={`end-${endPickerKey}`}
                     ref={endPickerRef}
                     onPlaceChange={handleEndPlaceChange}
-                    placeholder="搜尋回程地點..."
+                    placeholder="搜尋終點..."
                     style={{ width: '100%', border: 'none', background: 'transparent' }}
                   />
                 </div>
@@ -314,11 +428,11 @@ export default function App() {
               </div>
             </div>
             <div className="input-group" style={{ flex: '0.8' }}>
-              <label>防呆時間底線</label>
+              <label>最晚回程</label>
               <input type="time" value={dayConfig.maxReturnTime} onChange={(e) => setDayConfig({ maxReturnTime: e.target.value })} />
             </div>
             <div className="input-group" style={{ flex: '0.5', alignItems: 'center' }}>
-              <label>API 即時更新</label>
+              <label>API 自動更新</label>
               <span style={{ cursor: 'pointer', color: dayConfig.autoUpdate ? 'var(--primary)' : '#9ca3af' }}
                 onClick={() => setDayConfig({ autoUpdate: !dayConfig.autoUpdate })}>
                 {dayConfig.autoUpdate ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
@@ -326,11 +440,11 @@ export default function App() {
             </div>
           </section>
 
-          {/* 時間軸行程 */}
+          {/* ??頠貉?蝔?*/}
           <section className={`itinerary-timeline glass-panel ${hasOvertimeWarning ? 'timeline-overtime-warning' : ''}`}>
             {hasOvertimeWarning && (
               <div className="global-warning-banner">
-                ⚠️ 行程總時間可能超出防呆底線，請調整景點停留時間！ (API 自動更新或手動試算後觸發此警告)
+                ?? 銵?蝮賣???質??粹??蝺?隢矽?湔暺????? (API ?芸??湔???岫蝞?閫貊甇方郎??
               </div>
             )}
 
@@ -343,28 +457,28 @@ export default function App() {
                 time={dayConfig.startTime}
               />
               <div style={{ position: 'absolute', bottom: '-32px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
-                <button onClick={() => useTripStore.getState().insertEmptyNode('START')} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="新增第一站">
+                <button onClick={() => useTripStore.getState().insertEmptyNode('START')} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="新增第一個景點">
                   <Plus size={16} />
                 </button>
               </div>
             </div>
 
             {nodesWithCalculatedTimes.map((node, i) => {
-              // 找出前一個節點的地名用作 AI 推薦上下文
-              const prevPlace = i === 0 ? dayConfig.startLocation : (nodesWithCalculatedTimes[i - 1].selected_place_name || "上一個景點");
+              // ?曉????暺??啣??其? AI ?刻銝???
+              const prevPlace = i === 0 ? dayConfig.startLocation : (nodesWithCalculatedTimes[i - 1].selected_place_name || '上一個景點');
               const nextPlace = dayConfig.endLocation;
 
               return (
                 <div key={node.id} style={{ position: 'relative', marginBottom: '64px' }} ref={i === nodesWithCalculatedTimes.length - 1 ? lastNodeRef : null}>
                   <ItineraryNode
                     nodeData={node}
-                    time={node.arrivalTime} // 傳遞計算出的時間
+                    time={node.arrivalTime} // ?喲?閮??箇???
                     prevNodeName={prevPlace}
                     onOpenModal={() => setIsModalOpen({ nodeId: node.id, prevPlace, nextPlace })}
-                    isOvertime={hasOvertimeWarning && i === 1} // 模擬超時節點
+                    isOvertime={hasOvertimeWarning && i === 1} // 璅⊥頞?蝭暺?
                   />
                   <div style={{ position: 'absolute', bottom: '-32px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
-                    <button onClick={() => useTripStore.getState().insertEmptyNode(node.id)} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="新增下一站">
+                    <button onClick={() => useTripStore.getState().insertEmptyNode(node.id)} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="在後面新增景點">
                       <Plus size={16} />
                     </button>
                   </div>
@@ -376,7 +490,7 @@ export default function App() {
               <ItineraryNode 
                 isEndEndpoint 
                 nodeTitle={dayConfig.endLocation} 
-                time={finalEndpointTime} // 傳遞動態計算的回程時間
+                time={finalEndpointTime} // ?喲???閮???蝔???
                 nodeData={{
                    id: 'END_NODE',
                    status: 'confirmed',

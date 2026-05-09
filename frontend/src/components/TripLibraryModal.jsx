@@ -19,11 +19,8 @@ const getLastModified = (trip) => trip.last_modified_utc || trip.sheetLastModifi
 function summarizeNodes(nodesByDay = {}) {
   return Object.values(nodesByDay).reduce((summary, nodes = []) => {
     nodes.forEach((node) => {
-      if (node?.status === 'confirmed') {
-        summary.confirmed += 1;
-      } else if (node?.status === 'pending_options') {
-        summary.pending += 1;
-      }
+      if (node?.status === 'confirmed') summary.confirmed += 1;
+      if (node?.status === 'pending_options') summary.pending += 1;
     });
     return summary;
   }, { confirmed: 0, pending: 0 });
@@ -38,7 +35,7 @@ function formatDateRange(trip) {
 }
 
 function formatModified(value) {
-  if (!value) return '尚未同步';
+  if (!value) return '尚未儲存';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('zh-TW', {
@@ -47,6 +44,13 @@ function formatModified(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function isLocalNewer(currentTrip) {
+  const local = currentTrip?.meta?.localLastModifiedUtc;
+  const sheet = currentTrip?.meta?.sheetLastModifiedUtc;
+  if (!local || !sheet) return Boolean(local);
+  return new Date(local) > new Date(sheet);
 }
 
 export default function TripLibraryModal({
@@ -62,11 +66,14 @@ export default function TripLibraryModal({
   const [error, setError] = useState('');
   const [loadingAction, setLoadingAction] = useState('');
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
+  const [confirmingImportId, setConfirmingImportId] = useState(null);
+  const [confirmingExport, setConfirmingExport] = useState(false);
 
   const currentTripId = currentTrip?.meta?.tripId;
   const currentNodeSummary = useMemo(() => (
     summarizeNodes(currentTrip?.nodesByDay)
   ), [currentTrip]);
+  const localNewer = isLocalNewer(currentTrip);
 
   const loadTrips = async () => {
     setError('');
@@ -76,7 +83,7 @@ export default function TripLibraryModal({
       const data = await api.listSheetTrips();
       setTrips(Array.isArray(data) ? data : data?.trips || []);
     } catch (err) {
-      setError(err.message || '無法取得雲端行程列表');
+      setError(err.message || '無法讀取雲端行程列表');
     } finally {
       setLoadingAction('');
     }
@@ -86,6 +93,8 @@ export default function TripLibraryModal({
     if (isOpen) {
       setValidationErrors([]);
       setConfirmingDeleteId(null);
+      setConfirmingImportId(null);
+      setConfirmingExport(false);
       loadTrips();
     }
   }, [isOpen]);
@@ -94,22 +103,35 @@ export default function TripLibraryModal({
 
   const handleExport = async () => {
     if (!currentTripId) return;
+    if (currentTrip?.meta?.sheetLastModifiedUtc && !confirmingExport) {
+      setConfirmingExport(true);
+      setStatusMessage('這會用目前畫面上的行程覆寫同一個雲端行程。再按一次「確認儲存」繼續。');
+      return;
+    }
+
     setError('');
     setValidationErrors([]);
     setLoadingAction('export');
     try {
       const result = await api.exportTripToSheet(currentTripId, currentTrip);
       onExported?.(result);
-      setStatusMessage('已覆寫到雲端');
+      setConfirmingExport(false);
+      setStatusMessage('已儲存到雲端');
       await loadTrips();
     } catch (err) {
-      setError(err.message || '匯出失敗');
+      setError(err.message || '儲存到雲端失敗');
     } finally {
       setLoadingAction('');
     }
   };
 
   const handleImport = async (tripId) => {
+    if (localNewer && confirmingImportId !== tripId) {
+      setConfirmingImportId(tripId);
+      setStatusMessage('目前本機行程有尚未儲存的變更。再按一次「確認載入」才會用雲端行程取代目前畫面。');
+      return;
+    }
+
     setError('');
     setValidationErrors([]);
     setLoadingAction(`import:${tripId}`);
@@ -118,16 +140,15 @@ export default function TripLibraryModal({
       const issues = result.validation_errors || result.validationErrors || [];
       setValidationErrors(issues);
       onImported?.(result.trip_data || result.tripData || result);
+      setConfirmingImportId(null);
       setStatusMessage(
         issues.length > 0
-          ? `已讀回雲端行程，請檢查 ${issues.length} 筆提醒`
-          : '已讀回雲端行程'
+          ? `已載入雲端行程，但有 ${issues.length} 個欄位提醒需要檢查`
+          : '已載入雲端行程'
       );
-      if (issues.length === 0) {
-        onClose?.();
-      }
+      if (issues.length === 0) onClose?.();
     } catch (err) {
-      setError(err.message || '讀回失敗');
+      setError(err.message || '載入雲端行程失敗');
     } finally {
       setLoadingAction('');
     }
@@ -147,7 +168,7 @@ export default function TripLibraryModal({
       setConfirmingDeleteId(null);
       await loadTrips();
     } catch (err) {
-      setError(err.message || '刪除失敗');
+      setError(err.message || '刪除雲端行程失敗');
     } finally {
       setLoadingAction('');
     }
@@ -164,7 +185,7 @@ export default function TripLibraryModal({
               <Cloud size={20} />
               <h2>行程庫</h2>
             </div>
-            <p>雲端行程以 Google Sheets 為來源；目前先支援手動覆寫與讀回。</p>
+            <p>用 Google Sheets 儲存、載入或刪除雲端行程。</p>
           </div>
           <button className="trip-icon-btn" onClick={onClose} aria-label="關閉行程庫">
             <X size={18} />
@@ -173,7 +194,7 @@ export default function TripLibraryModal({
 
         <section className="trip-current-panel">
           <div>
-            <span className="trip-kicker">目前行程</span>
+            <span className="trip-kicker">目前畫面</span>
             <h3>{currentTrip?.meta?.tripTitle || '未命名行程'}</h3>
             <p>
               {currentTrip?.meta?.startDate} ~ {currentTrip?.meta?.endDate}
@@ -181,11 +202,14 @@ export default function TripLibraryModal({
               {currentNodeSummary.confirmed} 個已確認景點
               {currentNodeSummary.pending > 0 && ` / ${currentNodeSummary.pending} 個待決定`}
             </p>
-            <p className="trip-muted">雲端更新：{formatModified(currentTrip?.meta?.sheetLastModifiedUtc)}</p>
+            <p className="trip-muted">
+              雲端時間：{formatModified(currentTrip?.meta?.sheetLastModifiedUtc)}
+              {localNewer && ' · 本機有未儲存變更'}
+            </p>
           </div>
           <button className="btn primary" onClick={handleExport} disabled={isBusy}>
             {loadingAction === 'export' ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
-            覆寫到雲端
+            {confirmingExport ? '確認儲存' : '儲存到雲端'}
           </button>
         </section>
 
@@ -205,7 +229,7 @@ export default function TripLibraryModal({
         )}
 
         {statusMessage && !error && (
-          <div className="trip-library-alert success">
+          <div className={`trip-library-alert ${confirmingExport || confirmingImportId ? 'warning' : 'success'}`}>
             {statusMessage}
           </div>
         )}
@@ -214,7 +238,7 @@ export default function TripLibraryModal({
           <div className="trip-library-alert warning">
             <AlertTriangle size={16} />
             <div>
-              <strong>匯入時有 {validationErrors.length} 筆檢查提醒</strong>
+              <strong>載入時有 {validationErrors.length} 個提醒</strong>
               <ul className="trip-validation-list">
                 {validationErrors.slice(0, 5).map((issue, index) => (
                   <li key={`${issue.row || 'meta'}-${issue.field}-${index}`}>
@@ -224,7 +248,7 @@ export default function TripLibraryModal({
                 ))}
               </ul>
               {validationErrors.length > 5 && (
-                <span>另有 {validationErrors.length - 5} 筆提醒未顯示。</span>
+                <span>還有 {validationErrors.length - 5} 個提醒未顯示</span>
               )}
             </div>
           </div>
@@ -234,7 +258,7 @@ export default function TripLibraryModal({
           {loadingAction === 'list' && trips.length === 0 ? (
             <div className="trip-empty-state">
               <Loader2 className="spin" size={22} />
-              載入雲端行程中
+              正在讀取雲端行程
             </div>
           ) : trips.length === 0 ? (
             <div className="trip-empty-state">目前沒有雲端行程</div>
@@ -244,6 +268,7 @@ export default function TripLibraryModal({
             const isImporting = loadingAction === `import:${tripId}`;
             const isDeleting = loadingAction === `delete:${tripId}`;
             const confirmDelete = confirmingDeleteId === tripId;
+            const confirmImport = confirmingImportId === tripId;
 
             return (
               <article key={tripId} className={`trip-list-item ${isCurrentTrip ? 'current' : ''}`}>
@@ -253,12 +278,12 @@ export default function TripLibraryModal({
                     {isCurrentTrip && <span>目前</span>}
                   </div>
                   <p>{formatDateRange(trip)} · {trip.days_count ?? trip.daysCount ?? '-'} 天 · {trip.node_count ?? trip.nodeCount ?? '-'} 個已確認景點</p>
-                  <p className="trip-muted">雲端更新：{formatModified(getLastModified(trip))}</p>
+                  <p className="trip-muted">雲端時間：{formatModified(getLastModified(trip))}</p>
                 </div>
                 <div className="trip-list-actions">
-                  <button className="btn outline" onClick={() => handleImport(tripId)} disabled={isBusy}>
+                  <button className={`btn outline ${confirmImport ? 'confirming' : ''}`} onClick={() => handleImport(tripId)} disabled={isBusy}>
                     {isImporting ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
-                    讀回
+                    {confirmImport ? '確認載入' : '載入'}
                   </button>
                   <button
                     className={`btn danger ${confirmDelete ? 'confirming' : ''}`}

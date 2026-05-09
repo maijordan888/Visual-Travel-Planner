@@ -8,6 +8,14 @@ import { api } from '../api';
 import { useTripStore } from '../store/useTripStore';
 
 const defaultCenter = { lat: 25.033, lng: 121.565 }; // 台北 101
+const GOOGLE_PHOTO_BASE = 'https://places.googleapis.com/v1';
+
+function buildPhotoUrl(photo, maxWidth = 400) {
+  const photoName = typeof photo === 'string' ? photo : photo?.name;
+  if (!photoName) return null;
+  const apiKey = window.__GOOGLE_MAPS_API_KEY__ || '';
+  return `${GOOGLE_PHOTO_BASE}/${photoName}/media?maxWidthPx=${maxWidth}&key=${apiKey}`;
+}
 
 // ─── MapHandler：同步地圖中心 + Marker 顯示 ─────────────────────────────────
 function MapHandler({ center, itineraryPlace, exploreMarkers, hoveredPlaceId, onCenterChange }) {
@@ -244,7 +252,17 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
     const place = e?.target?.value || placePickerRef.current?.value;
     if (!place) return;
     try {
-      await place.fetchFields({ fields: ['displayName', 'location', 'rating', 'id'] });
+      await place.fetchFields({
+        fields: [
+          'displayName',
+          'formattedAddress',
+          'location',
+          'photos',
+          'rating',
+          'types',
+          'id',
+        ],
+      });
     } catch (error) {
       console.error('Failed to fetch place details:', error);
       alert(
@@ -257,8 +275,15 @@ export default function MapModal({ onClose, prevPlace, nextPlace, onAddNode }) {
       setMapCenter(loc);
       const newPlace = {
         id: place.id,
+        place_id: place.id,
         name: place.displayName || 'Unknown Place',
         rating: place.rating || 4.5,
+        address: place.formattedAddress || '',
+        lat: loc.lat,
+        lng: loc.lng,
+        photo_url: buildPhotoUrl(place.photos?.[0]),
+        types: place.types || [],
+        tags: [place.types?.[0] || '地圖搜尋'],
         durationMins: 90,
         tag: '從地圖搜尋選擇',
       };

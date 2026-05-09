@@ -301,33 +301,42 @@ v1 原則：保守讀取，不自動猜測地點。
 
 ---
 
-## Phase 6: 建議開發順序
+## Phase 6: v1 完成狀態
 
-1. Phase 0：補 `tripId`、timestamp、store migration、`loadTripFromArchive`。
-2. Phase 0：統一 PlaceSnapshot，修 `addOptionToNode`、`confirmOption`、`ExplorePanel.handleAdd` payload。
-3. Phase 1：安裝依賴、設定 credentials、`.gitignore` 加入 `backend/credentials/`。
-4. Phase 1：建立 `sheets_service.py` 連線與 `__SUMMARY__` 初始化。
-5. Phase 2/3：完成 export-only MVP 與 `POST /sheets/export/{trip_id}`。
-6. Phase 4：加入 `TripLibraryModal` 列表與「覆寫同步」。
-7. Phase 5：完成 `GET /sheets/import/{trip_id}` 與 validation warnings。
-8. Phase 4：完成「載入」與衝突確認 UI。
-9. 完成 `DELETE /sheets/trips/{trip_id}` 與前端刪除。
-10. 整合測試與文件更新。
+1. [x] Phase 0：補 `tripId`、timestamp、store migration、`loadTripFromArchive`。
+2. [x] Phase 0：統一 PlaceSnapshot，修 `addOptionToNode`、`confirmOption`、`ExplorePanel.handleAdd` payload。
+3. [x] Phase 1：安裝依賴、設定 credentials、`.gitignore` 加入 `backend/credentials/`。
+4. [x] Phase 1：建立 `sheets_service.py` 連線與 `__SUMMARY__` 初始化。
+5. [x] Phase 2/3：完成 export-only MVP 與 `POST /sheets/export/{trip_id}`。
+6. [x] Phase 4：加入 `TripLibraryModal` 列表與手動儲存/載入。
+7. [x] Phase 5：完成 `GET /sheets/import/{trip_id}` 與 validation warnings。
+8. [x] Phase 4：完成「載入」與本機未儲存變更確認 UI。
+9. [x] 完成 `DELETE /sheets/trips/{trip_id}` 與前端刪除。
+10. [x] 整合測試與文件更新。
+
+v1 目前定位為「穩定雲端存檔與讀回」。多人同步、自動合併、背景自動同步、缺 PlaceID 自動 re-geocode、Sheet 端完整 start/end row 編輯都保留在 v2。
 
 ---
 
 ## Test Cases
 
-- [ ] 舊 localStorage 沒有 `tripId` 時，migration 會補新 `tripId`，且資料不遺失。
-- [ ] 修改 trip title、日期、day config、node、notes 後，`localLastModifiedUtc` 會更新。
-- [ ] `ExplorePanel.handleAdd` 加入景點後，node 保留 `place_id`、`address`、`lat`、`lng`、`photo_url`、`types`。
-- [ ] `confirmOption` 後，新的 confirmed node 不遺失 PlaceID/address/lat/lng/photo_url/tags。
-- [ ] export 3 天 8 個景點後，Sheet row、summary row、公式欄位都正確。
-- [ ] export 成功後，前端回寫 `sheetLastModifiedUtc`。
-- [ ] frontend wrapper 的 `importTrip` 使用 `GET`，且與後端 endpoint 一致。
-- [ ] Sheet 缺 PlaceID 但有地名時，import 不自動錯配地點，會產生 validation warning 或 pending node。
-- [ ] Sheet 有 validation warning 時，TripLibraryModal 能顯示警告。
-- [ ] 刪除行程後，trip sheet 與 `__SUMMARY__` 對應 row 都移除。
+- [x] 舊 localStorage 沒有 `tripId` 時，migration 會補新 `tripId`，且資料不遺失。
+- [x] 修改 trip title、日期、day config、node、notes 後，`localLastModifiedUtc` 會更新。
+- [x] `ExplorePanel.handleAdd` 加入景點後，node 保留 `place_id`、`address`、`lat`、`lng`、`photo_url`、`types`。
+- [x] `confirmOption` 後，新的 confirmed node 不遺失 PlaceID/address/lat/lng/photo_url/tags。
+- [x] export 3 天 8 個景點後，Sheet row、summary row、公式欄位都正確。
+- [x] export 成功後，前端回寫 `sheetLastModifiedUtc`。
+- [x] frontend wrapper 的 `importTripFromSheet` 使用 `GET`，且與後端 endpoint 一致。
+- [x] Sheet 缺 PlaceID 但有地名時，import 不自動錯配地點，會產生 validation warning。
+- [x] Sheet 有 validation warning 時，TripLibraryModal 能顯示警告。
+- [x] 刪除行程後，trip sheet 與 `__SUMMARY__` 對應 row 都移除。
+
+驗證紀錄：
+
+- `npm run build` 通過。
+- `python -m compileall backend` 通過。
+- live Google Sheets round-trip 測試通過：臨時 trip 可 export/import/delete，且 `Arrival Time`、`Departure Time`、`Transport From Previous (mins)`、`PlaceID`、`Address`、`lat`、`lng`、`photo_url` 可讀回。
+- TripLibraryModal 瀏覽器測試通過：主畫面同步狀態、儲存後 `sheetLastModifiedUtc` 回寫、未儲存變更載入確認、日期直接編輯都可操作。
 
 ---
 
@@ -345,17 +354,17 @@ v1 原則：保守讀取，不自動猜測地點。
 
 | 檔案 | 狀態 | 說明 |
 |---|---|---|
-| `frontend/src/store/useTripStore.js` | 需修改 | metadata、timestamp、migration、PlaceSnapshot |
-| `frontend/src/components/ExplorePanel.jsx` | 需修改 | 補完整 place payload |
-| `frontend/src/components/ItineraryNode.jsx` | 需修改 | notes UI |
-| `frontend/src/components/TripLibraryModal.jsx` | 新建 | 行程庫與同步 UI |
-| `frontend/src/api.js` | 需修改 | Sheets API wrapper |
-| `frontend/src/App.jsx` | 需修改 | Header 加入「行程庫」入口 |
-| `backend/sheets_service.py` | 新建 | Sheets API 核心邏輯 |
-| `backend/main.py` | 需修改 | `/sheets/` endpoints |
-| `backend/schemas.py` | 需修改 | TripExportPayload 與 validation schema |
-| `backend/requirements.txt` | 需修改 | `gspread`, `google-auth` |
-| `.gitignore` | 需修改 | 排除 `backend/credentials/` |
+| `frontend/src/store/useTripStore.js` | 已完成 | metadata、timestamp、migration、PlaceSnapshot |
+| `frontend/src/components/ExplorePanel.jsx` | 已完成 | 補完整 place payload |
+| `frontend/src/components/ItineraryNode.jsx` | 已完成 | notes UI |
+| `frontend/src/components/TripLibraryModal.jsx` | 已完成 | 行程庫與同步 UI |
+| `frontend/src/api.js` | 已完成 | Sheets API wrapper |
+| `frontend/src/App.jsx` | 已完成 | Header/Sidebar 加入「行程庫」與同步狀態入口 |
+| `backend/sheets_service.py` | 已完成 | Sheets API 核心邏輯 |
+| `backend/main.py` | 已完成 | `/sheets/` endpoints |
+| `backend/schemas.py` | 已完成 | TripExportPayload 與 validation schema |
+| `backend/requirements.txt` | 已完成 | `gspread`, `google-auth` |
+| `.gitignore` | 已完成 | 排除 `.env`、`backend/.env*`、`backend/credentials/` |
 | `backend/credentials/gsheet_service_account.json` | 手動建立 | Service Account key，不進 git |
 | `backend/.env` | 手動建立 | `GSHEET_SPREADSHEET_ID` |
 

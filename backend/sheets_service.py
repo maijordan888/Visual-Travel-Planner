@@ -40,9 +40,11 @@ TRIP_HEADERS = [
     "Google Maps URL",
     "Notes",
     "Tags",
-    "Transport To Next (mins)",
+    "Transport From Previous (mins)",
     "Transport Mode",
     "PlaceID",
+    "lat",
+    "lng",
     "photo_url",
 ]
 
@@ -256,6 +258,15 @@ def _safe_number(value: Any, fallback: int = 0) -> int:
         return fallback
 
 
+def _safe_float(value: Any, fallback: float | None = None) -> float | None:
+    if value in (None, ""):
+        return fallback
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def _safe_day(value: Any) -> int | None:
     try:
         day = int(value)
@@ -333,7 +344,11 @@ def _transport_minutes(node: dict[str, Any]) -> str:
     manual = node.get("manual_transport_time")
     if manual not in (None, ""):
         return _safe_text(manual)
-    value = node.get("transport_time_mins") or node.get("travel_time_mins")
+    value = (
+        node.get("transport_time_mins")
+        or node.get("travel_time_mins")
+        or node.get("auto_transport_time")
+    )
     return _safe_text(value)
 
 
@@ -374,6 +389,8 @@ def _trip_rows(payload: dict[str, Any]) -> list[list[Any]]:
                     _transport_minutes(node),
                     _safe_text(node.get("transport_mode") or "transit"),
                     place_id,
+                    node.get("lat") if node.get("lat") is not None else "",
+                    node.get("lng") if node.get("lng") is not None else "",
                     _safe_text(node.get("photo_url")),
                 ]
             )
@@ -395,9 +412,10 @@ def export_trip_to_sheet(trip_id: str, trip_data: dict[str, Any]) -> dict[str, A
 
     rows = _trip_rows(trip_data)
     worksheet.clear()
-    worksheet.update("A1:M1", [TRIP_HEADERS])
+    end_column = chr(ord("A") + len(TRIP_HEADERS) - 1)
+    worksheet.update(f"A1:{end_column}1", [TRIP_HEADERS])
     if rows:
-        worksheet.update(f"A2:M{len(rows) + 1}", rows, value_input_option="USER_ENTERED")
+        worksheet.update(f"A2:{end_column}{len(rows) + 1}", rows, value_input_option="USER_ENTERED")
     worksheet.freeze(rows=1)
 
     last_modified_utc = _now_utc()
@@ -570,6 +588,11 @@ def _node_from_sheet_row(row: dict[str, Any], issues: list[dict[str, Any]]) -> t
         )
 
     stay_duration = _safe_number(row.get("Stay Duration (mins)"), fallback=60)
+    transport_from_previous = (
+        row.get("Transport From Previous (mins)")
+        if "Transport From Previous (mins)" in row
+        else row.get("Transport To Next (mins)")
+    )
     node = {
         "id": f"sheet_{day}_{row_number}",
         "status": "confirmed",
@@ -577,8 +600,8 @@ def _node_from_sheet_row(row: dict[str, Any], issues: list[dict[str, Any]]) -> t
         "selected_place_name": place_name,
         "rating": 0,
         "address": _safe_text(row.get("Address")),
-        "lat": None,
-        "lng": None,
+        "lat": _safe_float(row.get("lat"), fallback=None),
+        "lng": _safe_float(row.get("lng"), fallback=None),
         "photo_url": _safe_text(row.get("photo_url")) or None,
         "types": [],
         "tags": _tags_list(row.get("Tags")),
@@ -587,7 +610,7 @@ def _node_from_sheet_row(row: dict[str, Any], issues: list[dict[str, Any]]) -> t
         "planned_stay_duration": stay_duration,
         "transport_mode": _safe_text(row.get("Transport Mode") or "transit"),
         "manual_transport_time": _safe_number(
-            row.get("Transport To Next (mins)"),
+            transport_from_previous,
             fallback=0,
         ) or None,
         "options": [],

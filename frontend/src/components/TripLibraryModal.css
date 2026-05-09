@@ -202,6 +202,11 @@
   background: var(--danger);
 }
 
+.trip-list-actions .btn.outline.confirming {
+  color: #fff;
+  background: var(--primary);
+}
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.62;
