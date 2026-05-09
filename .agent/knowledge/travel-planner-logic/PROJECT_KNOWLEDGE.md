@@ -214,3 +214,19 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
 - Visible trip sheets include `lat` and `lng` columns in addition to `PlaceID`, `Address`, and `photo_url`; import reads those coordinates back when present. Existing sheets without these columns still import with null coordinates.
 - UI date-time labels in the cloud sync surfaces use 24-hour time (`hour12: false`), and day config time inputs set `lang="en-GB"` so the top controls match timeline `HH:MM` display.
 - Long itineraries can be switched from a fixed bottom-right floating day switcher in `App.jsx`. It opens a compact scrollable day list, calls the same `setActiveDay(day)` flow as the sidebar, then closes after selection. Styles live in `frontend/src/index.css` under `.floating-day-switcher`.
+
+## 11. Markdown/PDF Offline Export Contract
+
+- `frontend/src/export/tripExport.js` provides pure export helpers:
+  - `normalizeTripForExport(tripData, options)` normalizes current store / imported Sheet trip data into `meta`, `days`, and `appendix`.
+  - `buildTripMarkdown(tripData, options)` returns a Markdown string for offline reading.
+  - `buildTripPrintHtml(tripData, options)` returns a self-contained HTML print view for browser "Save as PDF".
+- `TripExportModal` is the v1 UI entry for offline export. It supports current-screen export, optional `GET /sheets/import/{trip_id}` refresh, Markdown preview, copy, `.md` download, and opening the print view.
+- Export data treats every day as a full route: `start`, confirmed `regular` nodes, and `end`. This differs from `node_count`, which still counts only confirmed regular景點.
+- Notes mapping:
+  - start row: `dayConfigs[day].startNotes`
+  - regular row: `node.notes`
+  - end row: `dayConfigs[day].endNotes`
+- Transport wording uses "from previous stop to this stop". Renderer field name is `transportFromPreviousMins`.
+- If a regular place has `photo_url`, Markdown exports `![place name](photo_url)` when `includeImages` is true. Print HTML uses the same URL for magazine-like place images. Missing photos produce no placeholder.
+- v1 PDF is produced by browser print; do not add a backend PDF engine unless a later task explicitly changes this scope.

@@ -279,9 +279,8 @@ buildTripMarkdown(tripData, options)
 
 ### Phase 2: Renderer Foundation
 
-- [ ] 新增 `frontend/src/export/normalizeTripForExport.js`。
-- [ ] 新增 `frontend/src/export/buildTripMarkdown.js`。
-- [ ] 新增模板元素函式：cover、summary、day section、timeline item、transport、notes、appendix。
+- [x] 新增 `frontend/src/export/tripExport.js`，包含 `normalizeTripForExport()`、`buildTripMarkdown()`、`buildTripPrintHtml()`。
+- [x] 新增模板元素函式：cover、summary、day section、timeline item、transport、notes、appendix、place image。
 - [ ] 補上 sample data，優先使用東京 2 日遊結構。
 - [ ] 撰寫單元測試或 lightweight fixture test，確認 Markdown 內容正確。
 
@@ -294,19 +293,19 @@ buildTripMarkdown(tripData, options)
 
 ### Phase 4: UI Integration
 
-- [ ] 新增 `TripExportModal`。
-- [ ] 在 sidebar 或行程庫附近新增「匯出行程」入口。
-- [ ] 支援目前畫面資料匯出。
-- [ ] 支援先從 Google Sheet 載入最新資料再匯出。
-- [ ] 支援複製 Markdown。
-- [ ] 支援下載 `.md`。
-- [ ] 支援開啟列印版。
+- [x] 新增 `TripExportModal`。
+- [x] 在 sidebar 或行程庫附近新增「匯出行程」入口。
+- [x] 支援目前畫面資料匯出。
+- [x] 支援先從 Google Sheet 載入最新資料再匯出。
+- [x] 支援複製 Markdown。
+- [x] 支援下載 `.md`。
+- [x] 支援開啟列印版。
 
 ### Phase 5: Workflow Documentation
 
-- [ ] 新增 `.agent/workflows/export-trip-markdown-pdf.md`。
-- [ ] 更新 `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md`，記錄 Markdown export renderer 與 public interface。
-- [ ] 若新增 UI 操作，更新對應 workflow。
+- [x] 新增 `.agent/workflows/export-trip-markdown-pdf.md`。
+- [x] 更新 `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md`，記錄 Markdown export renderer 與 public interface。
+- [x] 若新增 UI 操作，更新對應 workflow。
 
 ## Public Interfaces
 

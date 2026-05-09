@@ -20,6 +20,7 @@
 ├── workflows/             ← 「怎麼做」—— UI 操作的具體步驟腳本（給 Agent 執行用）
 │   ├── delete-day.md
 │   ├── explore-and-add-place.md
+│   ├── export-trip-markdown-pdf.md
 │   ├── itinerary-notes-and-day-switching.md
 │   ├── open-add-place-ui.md
 │   ├── reset-persistent-data.md
