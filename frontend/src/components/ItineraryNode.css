@@ -62,10 +62,11 @@
 }
 
 .endpoint-simple-card {
-    background: rgba(255,255,255,0.7);
-    padding: 8px 16px;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-bg-strong);
+    padding: 16px;
+    border-radius: var(--surface-radius);
+    border: 1px solid var(--surface-border);
+    box-shadow: var(--surface-shadow);
 }
 
 .node-notes {
@@ -73,8 +74,8 @@
 }
 
 .node-notes-toggle {
-    border: 1px solid rgba(99, 102, 241, 0.22);
-    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(251, 146, 60, 0.24);
+    background: rgba(251, 146, 60, 0.08);
     color: var(--primary);
     border-radius: 8px;
     padding: 6px 10px;
@@ -88,8 +89,8 @@
 
 .node-notes-toggle:hover,
 .node-notes-toggle.has-notes {
-    background: rgba(99, 102, 241, 0.16);
-    border-color: rgba(99, 102, 241, 0.42);
+    background: rgba(251, 146, 60, 0.14);
+    border-color: rgba(251, 146, 60, 0.42);
 }
 
 .node-notes-input {
@@ -101,7 +102,7 @@
     border-radius: 8px;
     padding: 10px 12px;
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.86);
+    background: var(--surface-bg-strong);
     font: inherit;
     line-height: 1.45;
 }
@@ -109,7 +110,7 @@
 .node-notes-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
 }
 
 /* 中間層交通資訊 */
@@ -168,14 +169,14 @@
     text-decoration: none;
     padding: 2px 8px;
     border-radius: 12px;
-    background: rgba(99, 102, 241, 0.08);
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: rgba(251, 146, 60, 0.08);
+    border: 1px solid rgba(251, 146, 60, 0.22);
     transition: all 0.2s ease;
     white-space: nowrap;
     margin-left: 4px;
 }
 .deep-link-btn:hover {
-    background: rgba(99, 102, 241, 0.15);
+    background: rgba(251, 146, 60, 0.14);
     border-color: var(--primary);
     transform: translateY(-1px);
 }
@@ -200,7 +201,7 @@
     font-size: 0.85rem;
     text-align: center;
     color: var(--primary);
-    background: rgba(99, 102, 241, 0.05);
+    background: rgba(251, 146, 60, 0.06);
 }
 .manual-toggle-btn, .manual-action-btn {
     border: none;
@@ -220,11 +221,11 @@
 }
 
 .node-card {
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 16px;
+    background: var(--surface-bg-strong);
+    border-radius: var(--surface-radius);
     padding: 16px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-    border: 1px solid #e5e7eb;
+    box-shadow: var(--surface-shadow);
+    border: 1px solid var(--surface-border);
     transition: all 0.3s ease;
 }
 .node-card.warning-mode {
