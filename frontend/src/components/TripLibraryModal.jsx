@@ -102,10 +102,17 @@ export default function TripLibraryModal({
     setLoadingAction(`import:${tripId}`);
     try {
       const result = await api.importTripFromSheet(tripId);
-      setValidationErrors(result.validation_errors || result.validationErrors || []);
+      const issues = result.validation_errors || result.validationErrors || [];
+      setValidationErrors(issues);
       onImported?.(result.trip_data || result.tripData || result);
-      setStatusMessage('已讀回雲端行程');
-      onClose?.();
+      setStatusMessage(
+        issues.length > 0
+          ? `已讀回雲端行程，請檢查 ${issues.length} 筆提醒`
+          : '已讀回雲端行程'
+      );
+      if (issues.length === 0) {
+        onClose?.();
+      }
     } catch (err) {
       setError(err.message || '讀回失敗');
     } finally {
@@ -188,7 +195,20 @@ export default function TripLibraryModal({
         {validationErrors.length > 0 && (
           <div className="trip-library-alert warning">
             <AlertTriangle size={16} />
-            匯入時有 {validationErrors.length} 筆檢查提醒，請確認 Sheet 內容。
+            <div>
+              <strong>匯入時有 {validationErrors.length} 筆檢查提醒</strong>
+              <ul className="trip-validation-list">
+                {validationErrors.slice(0, 5).map((issue, index) => (
+                  <li key={`${issue.row || 'meta'}-${issue.field}-${index}`}>
+                    {issue.row ? `Row ${issue.row} · ` : ''}
+                    {issue.field}: {issue.issue}
+                  </li>
+                ))}
+              </ul>
+              {validationErrors.length > 5 && (
+                <span>另有 {validationErrors.length - 5} 筆提醒未顯示。</span>
+              )}
+            </div>
           </div>
         )}
 

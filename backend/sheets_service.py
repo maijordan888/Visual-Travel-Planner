@@ -1,4 +1,6 @@
 import os
+import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -8,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SUMMARY_SHEET_NAME = "__SUMMARY__"
+METADATA_SHEET_NAME = "__TRIP_METADATA__"
 SUMMARY_HEADERS = [
     "trip_id",
     "trip_name",
@@ -17,6 +20,12 @@ SUMMARY_HEADERS = [
     "node_count",
     "last_modified_utc",
     "status",
+]
+
+METADATA_HEADERS = [
+    "trip_id",
+    "trip_json",
+    "last_modified_utc",
 ]
 
 TRIP_HEADERS = [
@@ -118,6 +127,20 @@ def ensure_summary_sheet():
     return worksheet
 
 
+def ensure_metadata_sheet():
+    spreadsheet = get_spreadsheet()
+    worksheet = _get_or_create_worksheet(
+        spreadsheet,
+        METADATA_SHEET_NAME,
+        rows=100,
+        cols=len(METADATA_HEADERS),
+    )
+    values = worksheet.get_all_values()
+    if not values or values[0] != METADATA_HEADERS:
+        worksheet.update("A1:C1", [METADATA_HEADERS])
+    return worksheet
+
+
 def get_all_trips_summary() -> list[dict[str, Any]]:
     worksheet = ensure_summary_sheet()
     return worksheet.get_all_records()
@@ -157,6 +180,60 @@ def upsert_trip_summary(trip_id: str, meta: dict[str, Any]) -> dict[str, Any]:
 
 def delete_trip_summary(trip_id: str) -> None:
     worksheet = ensure_summary_sheet()
+    row_number = _find_summary_row(worksheet, trip_id)
+    if row_number:
+        worksheet.delete_rows(row_number)
+
+
+def upsert_trip_metadata(
+    trip_id: str,
+    trip_data: dict[str, Any],
+    last_modified_utc: str,
+) -> None:
+    worksheet = ensure_metadata_sheet()
+    meta = trip_data.get("meta") or {}
+    metadata = {
+        "meta": {
+            "tripId": trip_id,
+            "tripTitle": meta.get("tripTitle", ""),
+            "startDate": meta.get("startDate", ""),
+            "endDate": meta.get("endDate", ""),
+            "localLastModifiedUtc": meta.get("localLastModifiedUtc"),
+            "sheetLastModifiedUtc": last_modified_utc,
+        },
+        "dayConfigs": trip_data.get("dayConfigs") or {},
+    }
+    row_values = [
+        trip_id,
+        json.dumps(metadata, ensure_ascii=False, separators=(",", ":")),
+        last_modified_utc,
+    ]
+    row_number = _find_summary_row(worksheet, trip_id)
+    if row_number:
+        worksheet.update(f"A{row_number}:C{row_number}", [row_values])
+    else:
+        worksheet.append_row(row_values, value_input_option="RAW")
+
+
+def get_trip_metadata(trip_id: str) -> dict[str, Any]:
+    worksheet = ensure_metadata_sheet()
+    row_number = _find_summary_row(worksheet, trip_id)
+    if not row_number:
+        return {}
+    values = worksheet.row_values(row_number)
+    if len(values) < 2 or not values[1]:
+        return {}
+    try:
+        metadata = json.loads(values[1])
+    except json.JSONDecodeError:
+        return {}
+    if len(values) >= 3 and values[2]:
+        metadata.setdefault("meta", {})["sheetLastModifiedUtc"] = values[2]
+    return metadata
+
+
+def delete_trip_metadata(trip_id: str) -> None:
+    worksheet = ensure_metadata_sheet()
     row_number = _find_summary_row(worksheet, trip_id)
     if row_number:
         worksheet.delete_rows(row_number)
@@ -204,6 +281,14 @@ def _minutes_to_time(total_minutes: int) -> str:
     return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
 
 
+def _valid_time(value: Any) -> bool:
+    if value in (None, ""):
+        return True
+    if not isinstance(value, str) or not re.match(r"^\d{1,2}:\d{2}$", value):
+        return False
+    return _time_to_minutes(value) is not None
+
+
 def _departure_time(arrival_time: str, stay_duration: int) -> str:
     arrival_minutes = _time_to_minutes(arrival_time)
     if arrival_minutes is None or stay_duration <= 0:
@@ -248,6 +333,14 @@ def _transport_minutes(node: dict[str, Any]) -> str:
         return _safe_text(manual)
     value = node.get("transport_time_mins") or node.get("travel_time_mins")
     return _safe_text(value)
+
+
+def _tags_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(tag).strip() for tag in value if str(tag).strip()]
+    if not value:
+        return []
+    return [tag.strip() for tag in str(value).split(",") if tag.strip()]
 
 
 def _trip_rows(payload: dict[str, Any]) -> list[list[Any]]:
@@ -319,9 +412,244 @@ def export_trip_to_sheet(trip_id: str, trip_data: dict[str, Any]) -> dict[str, A
             "status": "active",
         },
     )
+    upsert_trip_metadata(trip_id, trip_data, last_modified_utc)
 
     return {
         "success": True,
         "sheet_url": worksheet.url,
         "last_modified_utc": last_modified_utc,
     }
+
+
+def _summary_for_trip(trip_id: str) -> dict[str, Any]:
+    for trip in get_all_trips_summary():
+        if trip.get("trip_id") == trip_id:
+            return trip
+    return {}
+
+
+def _default_day_config() -> dict[str, Any]:
+    return {
+        "startLocation": "",
+        "endLocation": "",
+        "startTime": "09:00",
+        "maxReturnTime": "22:00",
+        "autoUpdate": True,
+    }
+
+
+def _ensure_day_configs(
+    day_configs: dict[str, Any],
+    rows_by_day: dict[str, list[dict[str, Any]]],
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    normalized = {str(day): config for day, config in (day_configs or {}).items()}
+    day_count = _safe_number(summary.get("days_count"), fallback=0)
+    row_days = [_safe_day(day) for day in rows_by_day.keys()]
+    max_row_day = max([day for day in row_days if day], default=0)
+    total_days = max(day_count, max_row_day, len(normalized), 1)
+    for day in range(1, total_days + 1):
+        normalized.setdefault(str(day), _default_day_config())
+    return normalized
+
+
+def _worksheet_rows(worksheet) -> list[dict[str, Any]]:
+    values = worksheet.get_all_values()
+    if not values:
+        return []
+    headers = values[0]
+    rows = []
+    for row_index, row_values in enumerate(values[1:], start=2):
+        row = {
+            header: row_values[index] if index < len(row_values) else ""
+            for index, header in enumerate(headers)
+        }
+        row["_row_number"] = row_index
+        rows.append(row)
+    return rows
+
+
+def _validation_issue(
+    row: int | None,
+    field: str,
+    issue: str,
+    severity: str = "warning",
+    original_value: str | None = None,
+    corrected_value: str | None = None,
+    auto_fixed: bool = False,
+) -> dict[str, Any]:
+    return {
+        "row": row,
+        "field": field,
+        "issue": issue,
+        "severity": severity,
+        "auto_fixed": auto_fixed,
+        "original_value": original_value,
+        "corrected_value": corrected_value,
+    }
+
+
+def _node_from_sheet_row(row: dict[str, Any], issues: list[dict[str, Any]]) -> tuple[int | None, dict[str, Any] | None]:
+    row_number = row.get("_row_number")
+    day = _safe_day(row.get("Day"))
+    if day is None:
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Day",
+                "Day must be a positive number; row skipped.",
+                severity="error",
+                original_value=_safe_text(row.get("Day")),
+            )
+        )
+        return None, None
+
+    place_name = _safe_text(row.get("Place Name")).strip()
+    if not place_name:
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Place Name",
+                "Place name is required; row skipped.",
+                severity="error",
+            )
+        )
+        return day, None
+
+    arrival_time = _safe_text(row.get("Arrival Time")).strip()
+    departure_time = _safe_text(row.get("Departure Time")).strip()
+    if not _valid_time(arrival_time):
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Arrival Time",
+                "Arrival time must use HH:MM format; imported as blank.",
+                original_value=arrival_time,
+                corrected_value="",
+                auto_fixed=True,
+            )
+        )
+        arrival_time = ""
+    if departure_time and not _valid_time(departure_time):
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Departure Time",
+                "Departure time must use HH:MM format.",
+                original_value=departure_time,
+            )
+        )
+    if arrival_time and departure_time:
+        arrival_minutes = _time_to_minutes(arrival_time)
+        departure_minutes = _time_to_minutes(departure_time)
+        if (
+            arrival_minutes is not None
+            and departure_minutes is not None
+            and departure_minutes < arrival_minutes
+        ):
+            issues.append(
+                _validation_issue(
+                    row_number,
+                    "Departure Time",
+                    "Departure time is earlier than arrival time.",
+                    original_value=departure_time,
+                )
+            )
+
+    place_id = _safe_text(row.get("PlaceID")).strip() or None
+    if not place_id:
+        issues.append(
+            _validation_issue(
+                row_number,
+                "PlaceID",
+                "PlaceID is empty; v1 import keeps the place name and does not re-geocode automatically.",
+                original_value="",
+            )
+        )
+
+    stay_duration = _safe_number(row.get("Stay Duration (mins)"), fallback=60)
+    node = {
+        "id": f"sheet_{day}_{row_number}",
+        "status": "confirmed",
+        "selected_place_id": place_id,
+        "selected_place_name": place_name,
+        "rating": 0,
+        "address": _safe_text(row.get("Address")),
+        "lat": None,
+        "lng": None,
+        "photo_url": _safe_text(row.get("photo_url")) or None,
+        "types": [],
+        "tags": _tags_list(row.get("Tags")),
+        "notes": _safe_text(row.get("Notes")),
+        "planned_arrival_time": arrival_time,
+        "planned_stay_duration": stay_duration,
+        "transport_mode": _safe_text(row.get("Transport Mode") or "transit"),
+        "manual_transport_time": _safe_number(
+            row.get("Transport To Next (mins)"),
+            fallback=0,
+        ) or None,
+        "options": [],
+    }
+    return day, node
+
+
+def import_trip_from_sheet(trip_id: str) -> dict[str, Any]:
+    gspread, _ = _load_gspread()
+    spreadsheet = get_spreadsheet()
+    try:
+        worksheet = spreadsheet.worksheet(_worksheet_title(trip_id))
+    except gspread.WorksheetNotFound as exc:
+        raise FileNotFoundError(f"Trip sheet not found: {trip_id}") from exc
+
+    summary = _summary_for_trip(trip_id)
+    metadata = get_trip_metadata(trip_id)
+    meta = metadata.get("meta") or {}
+    validation_errors: list[dict[str, Any]] = []
+    nodes_by_day: dict[str, list[dict[str, Any]]] = {}
+
+    for row in _worksheet_rows(worksheet):
+        day, node = _node_from_sheet_row(row, validation_errors)
+        if day is None or node is None:
+            continue
+        nodes_by_day.setdefault(str(day), []).append(node)
+
+    last_modified_utc = (
+        meta.get("sheetLastModifiedUtc")
+        or summary.get("last_modified_utc")
+        or _now_utc()
+    )
+    start_date = meta.get("startDate") or summary.get("start_date") or ""
+    end_date = meta.get("endDate") or summary.get("end_date") or start_date
+    trip_data = {
+        "meta": {
+            "tripId": trip_id,
+            "tripTitle": meta.get("tripTitle") or summary.get("trip_name") or "",
+            "startDate": start_date,
+            "endDate": end_date,
+            "localLastModifiedUtc": meta.get("localLastModifiedUtc"),
+            "sheetLastModifiedUtc": last_modified_utc,
+        },
+        "dayConfigs": _ensure_day_configs(
+            metadata.get("dayConfigs") or {},
+            nodes_by_day,
+            summary,
+        ),
+        "nodesByDay": nodes_by_day,
+    }
+    return {
+        "trip_data": trip_data,
+        "validation_errors": validation_errors,
+    }
+
+
+def delete_trip_sheet(trip_id: str) -> None:
+    gspread, _ = _load_gspread()
+    spreadsheet = get_spreadsheet()
+    try:
+        worksheet = spreadsheet.worksheet(_worksheet_title(trip_id))
+    except gspread.WorksheetNotFound:
+        worksheet = None
+    if worksheet:
+        spreadsheet.del_worksheet(worksheet)
+    delete_trip_summary(trip_id)
+    delete_trip_metadata(trip_id)

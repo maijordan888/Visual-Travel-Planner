@@ -358,3 +358,12 @@ v1 原則：保守讀取，不自動猜測地點。
 | `.gitignore` | 需修改 | 排除 `backend/credentials/` |
 | `backend/credentials/gsheet_service_account.json` | 手動建立 | Service Account key，不進 git |
 | `backend/.env` | 手動建立 | `GSHEET_SPREADSHEET_ID` |
+
+## Implementation Update: Import validation + delete
+
+- `GET /sheets/import/{trip_id}` is implemented.
+- Import returns `{ trip_data, validation_errors }` and uses `loadTripFromArchive(trip_data)` on the frontend.
+- v1 import does not auto re-geocode rows without `PlaceID`; it keeps the place name and returns a validation warning.
+- Import also warns on invalid `HH:MM` times and departure-before-arrival rows.
+- `DELETE /sheets/trips/{trip_id}` is implemented and removes the trip worksheet, summary row, and metadata row.
+- `__TRIP_METADATA__` stores `meta` and `dayConfigs`; the visible trip sheet remains regular place rows only.
