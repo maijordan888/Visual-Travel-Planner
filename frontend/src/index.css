@@ -43,19 +43,22 @@ body {
 /* Layout */
 .app-container {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
   padding: 20px;
   gap: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  align-items: flex-start;
 }
 
 .days-sidebar {
   flex: 0 0 250px;
+  min-height: calc(100vh - 40px);
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  align-self: flex-start;
 }
 
 .trip-sync-card {
@@ -102,6 +105,22 @@ body {
 .trip-sync-save {
   width: 100%;
   justify-content: center;
+}
+
+.sidebar-action {
+  width: 100%;
+  justify-content: center;
+}
+
+.new-trip-action {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+}
+
+.new-trip-action:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
 }
 
 .trip-edit-error {
@@ -168,6 +187,101 @@ body {
   color: var(--primary);
   border-color: var(--primary);
   box-shadow: 0 4px 12px rgba(251, 146, 60, 0.15);
+}
+
+.floating-day-switcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.floating-day-trigger,
+.floating-day-menu {
+  pointer-events: auto;
+}
+
+.floating-day-trigger {
+  min-width: 106px;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid rgba(251, 146, 60, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--primary-hover);
+  box-shadow: 0 10px 26px rgba(31, 38, 135, 0.16);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.floating-day-trigger:hover {
+  background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(31, 38, 135, 0.2);
+}
+
+.floating-day-menu {
+  width: 150px;
+  max-height: min(48vh, 360px);
+  padding: 8px;
+  border-radius: 14px;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.floating-day-option {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.floating-day-option:hover {
+  background: #fff7ed;
+  color: var(--primary-hover);
+}
+
+.floating-day-option.active {
+  background: #fff;
+  border-color: var(--primary);
+  color: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.14);
+}
+
+@media (max-width: 760px) {
+  .floating-day-switcher {
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .floating-day-trigger {
+    min-width: 96px;
+    min-height: 42px;
+    padding: 0 14px;
+  }
+
+  .floating-day-menu {
+    width: 136px;
+    max-height: 42vh;
+  }
 }
 
 /* PlacePicker wrapper for day config inputs */

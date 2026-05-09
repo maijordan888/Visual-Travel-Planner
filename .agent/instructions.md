@@ -9,8 +9,8 @@
 
 **每次對話開始前，AI Agent 必須依序讀取：**
 
-1. `.agent/README.md` — 確認目錄結構與 skills/workflows 的差異
-2. `.agent/skills/travel-planner-logic/SKILL.md` — 建立技術背景知識
+1. `.agent/README.md` — 確認目錄結構與 knowledge/workflows 的差異
+2. `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md` — 建立技術背景知識
 3. `.agent/todos/QA_REPORT.md` — 確認目前已知問題與優先度
 4. 若任務涉及特定 UI 操作，再查找 `.agent/workflows/` 對應的 workflow 文件
 
@@ -19,8 +19,8 @@
 ## 2. 架構文件維護（強制）
 
 - **觸發條件**：完成功能開發、修改數據模型（Store/DB Schema）、調整 API 介面時
-- **必須動作**：同步更新 `.agent/skills/travel-planner-logic/SKILL.md`
-- **目的**：SKILL.md 是後續 Agent 理解專案的「快速道路」，過時的文件會浪費大量 Token 並導致錯誤判斷
+- **必須動作**：同步更新 `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md`
+- **目的**：PROJECT_KNOWLEDGE.md 是後續 Agent 理解專案的「快速道路」，過時的文件會浪費大量 Token 並導致錯誤判斷
 
 ---
 

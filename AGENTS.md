@@ -27,7 +27,7 @@
 1. `.agent/README.md` — 目錄結構與文件角色。
 2. `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md` — 架構、資料模型、已知坑點。
 3. `.agent/todos/QA_REPORT.md` — 目前已知問題與優先度。
-4. 任務涉及雲端同步、行程存檔或 Google Sheets 時，再讀 `.agent/todos/TASK_GSHEET_SYNC.md`。
+4. 任務涉及雲端同步、行程存檔或 Google Sheets 時，再讀 `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md` 的 Google Sheets contract 與 `.agent/workflows/trip-library-cloud-sync.md`。
 5. 任務涉及特定 UI 操作時，再讀 `.agent/workflows/` 對應文件。
 
 ## 文件分工

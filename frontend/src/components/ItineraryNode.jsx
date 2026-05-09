@@ -12,9 +12,11 @@ export default function ItineraryNode({
     nodeData,
     prevNodeName,
     onOpenModal,
+    onNotesChange,
     isOvertime
 }) {
   const [isBackupExpanded, setIsBackupExpanded] = useState(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
   const [transportTime, setTransportTime] = useState(null);
   const [transportError, setTransportError] = useState(null);
   const [isLoadingTime, setIsLoadingTime] = useState(false);
@@ -30,8 +32,10 @@ export default function ItineraryNode({
     transport_mode, 
     rating, 
     options,
+    notes,
     manual_transport_time 
   } = nodeData || {};
+  const notesValue = notes || '';
 
   // Helper to sync auto transport time to store
   const syncAutoTime = (val) => {
@@ -84,6 +88,16 @@ export default function ItineraryNode({
 
   const handleModeChange = (mode) => updateNode(nodeData.id, { transport_mode: mode });
   const handleDurationChange = (e) => updateNode(nodeData.id, { planned_stay_duration: Number(e.target.value) });
+  const handleNotesChange = (e) => {
+    const nextNotes = e.target.value;
+    if (onNotesChange) {
+      onNotesChange(nextNotes);
+      return;
+    }
+    if (nodeData?.id) {
+      updateNode(nodeData.id, { notes: nextNotes });
+    }
+  };
   const handleManualTimeChange = (e) => {
     const val = e.target.value === '' ? null : Number(e.target.value);
     updateNode(nodeData.id, { manual_transport_time: val });
@@ -182,6 +196,28 @@ export default function ItineraryNode({
     );
   };
 
+  const renderNotesEditor = () => (
+    <div className="node-notes">
+      <button
+        className={`node-notes-toggle ${notesValue ? 'has-notes' : ''}`}
+        onClick={() => setIsNotesExpanded(!isNotesExpanded)}
+        type="button"
+      >
+        <Edit2 size={14} />
+        {isNotesExpanded ? '收合註記' : (notesValue ? '查看註記' : '新增註記')}
+      </button>
+      {isNotesExpanded && (
+        <textarea
+          className="node-notes-input"
+          value={notesValue}
+          onChange={handleNotesChange}
+          placeholder="輸入交通提醒、訂位資訊、票券、營業時間或其他備註..."
+          rows={3}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className={`itinerary-node ${isStartEndpoint || isEndEndpoint ? 'endpoint-variant' : ''} animate-slide-down`}>
       <div className="node-time">{time}</div>
@@ -219,6 +255,7 @@ export default function ItineraryNode({
             <h4 style={{ color: 'var(--text-main)', fontSize: '1.1rem', margin: 0 }}>
               {isStartEndpoint ? '出發：' : '終點：'} {nodeTitle}
             </h4>
+            {renderNotesEditor()}
           </div>
         ) : (
           <div className={`node-card ${status === 'pending_options' ? 'pending-mode' : ''} ${isOvertime ? 'danger-mode' : ''}`}>
@@ -248,6 +285,7 @@ export default function ItineraryNode({
                           <input type="number" value={planned_stay_duration} onChange={handleDurationChange} className="duration-input" />
                           <span>分鐘</span>
                       </div>
+                      {renderNotesEditor()}
                   </div>
 
                   <button className="toggle-backups-btn" onClick={() => setIsBackupExpanded(!isBackupExpanded)}>

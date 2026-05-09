@@ -205,9 +205,12 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
 
 ### Google Sheets import/delete implementation notes
 - Backend `/sheets/*` now supports list/export/import/delete. `TripLibraryModal` uses real API results and does not mock success.
-- Visible `{trip_id}` sheets contain only regular itinerary place rows. Start/end locations and `dayConfigs` are stored in internal `__TRIP_METADATA__`, so manual editors do not confuse endpoints with regular places.
+- Visible `{trip_id}` sheets now include full route rows with `Node Type` values `start`, `regular`, and `end`. Start/end rows are for route readability and are imported back into `dayConfigs`, while `regular` rows are imported into `nodesByDay`.
+- Each visible route row supports `Notes`. Regular place notes live on `node.notes`; endpoint notes live on `dayConfigs[day].startNotes` and `dayConfigs[day].endNotes`.
 - Import validation keeps v1 conservative: PlaceID is authoritative when present; rows without PlaceID are imported by name only and return a warning, with no automatic re-geocode. Invalid time formats and departure-before-arrival also return validation warnings.
 - Export payload is enriched in `App.jsx` before calling Sheets export: each regular node receives `planned_arrival_time`, `planned_departure_time`, and `transport_time_mins` based on the same per-day timeline calculation shown in the UI.
 - The visible trip sheet transport column is now `Transport From Previous (mins)`, matching the current node data model where `manual_transport_time` / `auto_transport_time` describes travel from the previous stop to the current stop. Import remains backward-compatible with old `Transport To Next (mins)` sheets.
 - `MapModal` PlacePicker now fetches and forwards `formattedAddress`, `location`, `photos`, `types`, `rating`, and `id` so direct map additions preserve PlaceSnapshot fields for Sheet export.
 - Visible trip sheets include `lat` and `lng` columns in addition to `PlaceID`, `Address`, and `photo_url`; import reads those coordinates back when present. Existing sheets without these columns still import with null coordinates.
+- UI date-time labels in the cloud sync surfaces use 24-hour time (`hour12: false`), and day config time inputs set `lang="en-GB"` so the top controls match timeline `HH:MM` display.
+- Long itineraries can be switched from a fixed bottom-right floating day switcher in `App.jsx`. It opens a compact scrollable day list, calls the same `setActiveDay(day)` flow as the sidebar, then closes after selection. Styles live in `frontend/src/index.css` under `.floating-day-switcher`.

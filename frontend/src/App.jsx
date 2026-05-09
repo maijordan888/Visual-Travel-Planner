@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Cloud, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { CalendarDays, Cloud, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import ItineraryNode from './components/ItineraryNode';
@@ -12,6 +12,30 @@ const apiKey =
 
 // Expose API key for Places Photo URL construction
 window.__GOOGLE_MAPS_API_KEY__ = apiKey;
+
+const formatDateTime24 = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
+const normalizeTime24Input = (value, fallback = '09:00') => {
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return fallback;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return fallback;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
 
 export default function App() {
   const {
@@ -28,6 +52,7 @@ export default function App() {
   const [tripDraft, setTripDraft] = useState(null);
   const [tripEditError, setTripEditError] = useState('');
   const [confirmingDeleteDayId, setConfirmingDeleteDayId] = useState(null);
+  const [isFloatingDaySwitcherOpen, setIsFloatingDaySwitcherOpen] = useState(false);
   const days = Object.keys(dayConfigs).map(Number).sort((a, b) => a - b);
   const lastNodeRef = useRef(null);
   const prevNodeCountRef = useRef(dailyNodes.length);
@@ -312,29 +337,9 @@ export default function App() {
             </div>
           )}
 
-          <section className={`trip-sync-card ${hasLocalChanges ? 'dirty' : ''}`}>
-            <div className="trip-sync-heading">
-              <Cloud size={17} />
-              <span>{syncLabel}</span>
-            </div>
-            <dl>
-              <div>
-                <dt>行程 ID</dt>
-                <dd>{tripId}</dd>
-              </div>
-              <div>
-                <dt>景點</dt>
-                <dd>{tripNodeSummary.confirmed} 已確認 / {tripNodeSummary.pending} 待決定</dd>
-              </div>
-              <div>
-                <dt>雲端時間</dt>
-                <dd>{sheetLastModifiedUtc ? new Date(sheetLastModifiedUtc).toLocaleString('zh-TW') : '尚未儲存'}</dd>
-              </div>
-            </dl>
-            <button className="btn primary trip-sync-save" onClick={() => setIsTripLibraryOpen(true)}>
-              <Cloud size={16} /> 儲存 / 載入
-            </button>
-          </section>
+          <button className="btn outline sidebar-action" onClick={() => setIsTripLibraryOpen(true)}>
+            <Cloud size={16} /> 行程庫
+          </button>
 
           {days.map(day => (
             <div
@@ -355,17 +360,14 @@ export default function App() {
             </div>
           ))}
 
-          <button className="btn outline" style={{ marginTop: 'auto', justifyContent: 'center', marginBottom: '8px' }} onClick={() => {
+          <button className="btn outline sidebar-action" onClick={() => {
             const currentEnd = new Date(endDate);
             currentEnd.setDate(currentEnd.getDate() + 1);
             setTripDates(startDate, currentEnd.toISOString().split('T')[0]);
           }}>
             <Plus size={16} /> 新增一天
           </button>
-          <button className="btn outline" style={{ justifyContent: 'center', marginBottom: '8px' }} onClick={() => setIsTripLibraryOpen(true)}>
-            <Cloud size={16} /> 行程庫
-          </button>
-          <button className="btn" style={{ justifyContent: 'center', background: 'var(--primary)', color: '#fff' }} onClick={() => {
+          <button className="btn sidebar-action new-trip-action" onClick={() => {
             createNewTrip();
             setTripDraft(null);
             setTripEditError('');
@@ -373,6 +375,30 @@ export default function App() {
           }}>
             新建行程
           </button>
+
+          <section className={`trip-sync-card ${hasLocalChanges ? 'dirty' : ''}`}>
+            <div className="trip-sync-heading">
+              <Cloud size={17} />
+              <span>{syncLabel}</span>
+            </div>
+            <dl>
+              <div>
+                <dt>行程 ID</dt>
+                <dd>{tripId}</dd>
+              </div>
+              <div>
+                <dt>景點</dt>
+                <dd>{tripNodeSummary.confirmed} 已確認 / {tripNodeSummary.pending} 待決定</dd>
+              </div>
+              <div>
+                <dt>雲端時間</dt>
+                <dd>{sheetLastModifiedUtc ? formatDateTime24(sheetLastModifiedUtc) : '尚未儲存'}</dd>
+              </div>
+            </dl>
+            <button className="btn primary trip-sync-save" onClick={() => setIsTripLibraryOpen(true)}>
+              <Cloud size={16} /> 儲存 / 載入
+            </button>
+          </section>
         </aside>
 
         {/* ?喳銝餌??*/}
@@ -403,7 +429,17 @@ export default function App() {
             </div>
             <div className="input-group">
               <label>出發時間</label>
-              <input type="time" value={dayConfig.startTime} onChange={(e) => setDayConfig({ startTime: e.target.value })} />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{1,2}:[0-9]{2}"
+                placeholder="09:00"
+                value={dayConfig.startTime}
+                onChange={(e) => setDayConfig({ startTime: e.target.value })}
+                onBlur={(e) => setDayConfig({
+                  startTime: normalizeTime24Input(e.target.value, dayConfig.startTime || '09:00'),
+                })}
+              />
             </div>
             <div className="input-group end-picker-container">
               <label>終點</label>
@@ -429,7 +465,17 @@ export default function App() {
             </div>
             <div className="input-group" style={{ flex: '0.8' }}>
               <label>最晚回程</label>
-              <input type="time" value={dayConfig.maxReturnTime} onChange={(e) => setDayConfig({ maxReturnTime: e.target.value })} />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{1,2}:[0-9]{2}"
+                placeholder="22:00"
+                value={dayConfig.maxReturnTime}
+                onChange={(e) => setDayConfig({ maxReturnTime: e.target.value })}
+                onBlur={(e) => setDayConfig({
+                  maxReturnTime: normalizeTime24Input(e.target.value, dayConfig.maxReturnTime || '22:00'),
+                })}
+              />
             </div>
             <div className="input-group" style={{ flex: '0.5', alignItems: 'center' }}>
               <label>API 自動更新</label>
@@ -455,6 +501,13 @@ export default function App() {
                 isStartEndpoint
                 nodeTitle={dayConfig.startLocation}
                 time={dayConfig.startTime}
+                nodeData={{
+                  id: 'START_NODE',
+                  status: 'confirmed',
+                  selected_place_name: dayConfig.startLocation,
+                  notes: dayConfig.startNotes || '',
+                }}
+                onNotesChange={(notes) => setDayConfig({ startNotes: notes })}
               />
               <div style={{ position: 'absolute', bottom: '-32px', left: '86px', transform: 'translateX(-50%)', zIndex: 10 }}>
                 <button onClick={() => useTripStore.getState().insertEmptyNode('START')} className="btn small outline" style={{ borderRadius: '50%', padding: '4px', background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)' }} title="新增第一個景點">
@@ -497,13 +550,46 @@ export default function App() {
                    selected_place_name: dayConfig.endLocation,
                    transport_mode: dayConfig.endNodeData?.transport_mode || 'transit',
                    manual_transport_time: dayConfig.endNodeData?.manual_transport_time || null,
-                   auto_transport_time: dayConfig.endNodeData?.auto_transport_time || null
+                   auto_transport_time: dayConfig.endNodeData?.auto_transport_time || null,
+                   notes: dayConfig.endNotes || '',
                 }}
                 prevNodeName={nodesWithCalculatedTimes.length > 0 ? nodesWithCalculatedTimes[nodesWithCalculatedTimes.length - 1].selected_place_name : dayConfig.startLocation}
+                onNotesChange={(notes) => setDayConfig({ endNotes: notes })}
               />
             </div>
           </section>
         </main>
+      </div>
+
+      <div className={`floating-day-switcher ${isFloatingDaySwitcherOpen ? 'open' : ''}`}>
+        {isFloatingDaySwitcherOpen && (
+          <div className="floating-day-menu glass-panel" role="menu" aria-label="切換行程天數">
+            {days.map(day => (
+              <button
+                key={day}
+                type="button"
+                className={`floating-day-option ${activeDay === day ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveDay(day);
+                  setIsFloatingDaySwitcherOpen(false);
+                }}
+                role="menuitem"
+              >
+                Day {day}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          className="floating-day-trigger"
+          onClick={() => setIsFloatingDaySwitcherOpen((isOpen) => !isOpen)}
+          aria-expanded={isFloatingDaySwitcherOpen}
+          aria-label="開啟天數切換"
+        >
+          <CalendarDays size={18} />
+          <span>Day {activeDay}</span>
+        </button>
       </div>
 
       {isModalOpen && (

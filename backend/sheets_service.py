@@ -32,6 +32,7 @@ METADATA_HEADERS = [
 
 TRIP_HEADERS = [
     "Day",
+    "Node Type",
     "Arrival Time",
     "Departure Time",
     "Stay Duration (mins)",
@@ -294,6 +295,13 @@ def _minutes_to_time(total_minutes: int) -> str:
     return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
 
 
+def _add_minutes_to_time(value: Any, minutes: int) -> str:
+    base_minutes = _time_to_minutes(value)
+    if base_minutes is None:
+        return ""
+    return _minutes_to_time(base_minutes + minutes)
+
+
 def _valid_time(value: Any) -> bool:
     if value in (None, ""):
         return True
@@ -333,6 +341,43 @@ def _is_regular_export_node(node: dict[str, Any]) -> bool:
     return bool(_node_place_name(node))
 
 
+def _route_row(
+    day: int,
+    node_type: str,
+    arrival_time: str,
+    departure_time: str,
+    stay_duration: int,
+    place_name: str,
+    address: str = "",
+    notes: str = "",
+    tags: str = "",
+    transport_minutes: str = "",
+    transport_mode: str = "",
+    place_id: str = "",
+    lat: Any = "",
+    lng: Any = "",
+    photo_url: str = "",
+) -> list[Any]:
+    return [
+        day,
+        node_type,
+        arrival_time,
+        departure_time,
+        stay_duration,
+        place_name,
+        address,
+        _maps_formula(place_id, place_name),
+        notes,
+        tags,
+        transport_minutes,
+        transport_mode,
+        place_id,
+        lat if lat is not None else "",
+        lng if lng is not None else "",
+        photo_url,
+    ]
+
+
 def _tags_text(node: dict[str, Any]) -> str:
     tags = node.get("tags") or []
     if isinstance(tags, list):
@@ -363,38 +408,96 @@ def _tags_list(value: Any) -> list[str]:
 def _trip_rows(payload: dict[str, Any]) -> list[list[Any]]:
     rows: list[list[Any]] = []
     nodes_by_day = payload.get("nodesByDay") or {}
-    for day_key in sorted(nodes_by_day, key=lambda value: _safe_day(value) or 9999):
+    day_configs = payload.get("dayConfigs") or {}
+    day_keys = set(nodes_by_day.keys()) | set(day_configs.keys())
+    for day_key in sorted(day_keys, key=lambda value: _safe_day(value) or 9999):
         day = _safe_day(day_key)
         if day is None:
             continue
+        config = day_configs.get(day_key) or day_configs.get(str(day)) or {}
+        start_time = _safe_text(config.get("startTime") or "09:00")
+        if config.get("startLocation"):
+            rows.append(
+                _route_row(
+                    day=day,
+                    node_type="start",
+                    arrival_time=start_time,
+                    departure_time=start_time,
+                    stay_duration=0,
+                    place_name=_safe_text(config.get("startLocation")),
+                    notes=_safe_text(config.get("startNotes")),
+                    lat=config.get("startLat") if config.get("startLat") is not None else "",
+                    lng=config.get("startLng") if config.get("startLng") is not None else "",
+                )
+            )
+
+        ref_time = start_time
         nodes = nodes_by_day.get(day_key) or []
         for node in nodes:
             if not isinstance(node, dict) or not _is_regular_export_node(node):
                 continue
             stay_duration = _safe_number(node.get("planned_stay_duration"), fallback=0)
             arrival_time = _safe_text(node.get("planned_arrival_time"))
+            departure_time = _departure_time(arrival_time, stay_duration)
+            if departure_time:
+                ref_time = departure_time
             place_id = _node_place_id(node)
             place_name = _node_place_name(node)
             rows.append(
-                [
-                    day,
-                    arrival_time,
-                    _departure_time(arrival_time, stay_duration),
-                    stay_duration,
-                    place_name,
-                    _safe_text(node.get("address")),
-                    _maps_formula(place_id, place_name),
-                    _safe_text(node.get("notes")),
-                    _tags_text(node),
-                    _transport_minutes(node),
-                    _safe_text(node.get("transport_mode") or "transit"),
-                    place_id,
-                    node.get("lat") if node.get("lat") is not None else "",
-                    node.get("lng") if node.get("lng") is not None else "",
-                    _safe_text(node.get("photo_url")),
-                ]
+                _route_row(
+                    day=day,
+                    node_type="regular",
+                    arrival_time=arrival_time,
+                    departure_time=departure_time,
+                    stay_duration=stay_duration,
+                    place_name=place_name,
+                    address=_safe_text(node.get("address")),
+                    notes=_safe_text(node.get("notes")),
+                    tags=_tags_text(node),
+                    transport_minutes=_transport_minutes(node),
+                    transport_mode=_safe_text(node.get("transport_mode") or "transit"),
+                    place_id=place_id,
+                    lat=node.get("lat") if node.get("lat") is not None else "",
+                    lng=node.get("lng") if node.get("lng") is not None else "",
+                    photo_url=_safe_text(node.get("photo_url")),
+                )
+            )
+
+        if config.get("endLocation"):
+            end_node = config.get("endNodeData") or {}
+            end_transport = _safe_number(
+                end_node.get("manual_transport_time")
+                if end_node.get("manual_transport_time") not in (None, "")
+                else end_node.get("auto_transport_time"),
+                fallback=0,
+            )
+            end_arrival_time = _add_minutes_to_time(ref_time, end_transport) or ref_time
+            rows.append(
+                _route_row(
+                    day=day,
+                    node_type="end",
+                    arrival_time=end_arrival_time,
+                    departure_time="",
+                    stay_duration=0,
+                    place_name=_safe_text(config.get("endLocation")),
+                    notes=_safe_text(config.get("endNotes")),
+                    transport_minutes=_safe_text(end_transport) if end_transport else "",
+                    transport_mode=_safe_text(end_node.get("transport_mode") or "transit"),
+                    lat=config.get("endLat") if config.get("endLat") is not None else "",
+                    lng=config.get("endLng") if config.get("endLng") is not None else "",
+                )
             )
     return rows
+
+
+def _regular_node_count(payload: dict[str, Any]) -> int:
+    nodes_by_day = payload.get("nodesByDay") or {}
+    return sum(
+        1
+        for nodes in nodes_by_day.values()
+        for node in (nodes or [])
+        if isinstance(node, dict) and _is_regular_export_node(node)
+    )
 
 
 def export_trip_to_sheet(trip_id: str, trip_data: dict[str, Any]) -> dict[str, Any]:
@@ -427,7 +530,7 @@ def export_trip_to_sheet(trip_id: str, trip_data: dict[str, Any]) -> dict[str, A
             "start_date": meta.get("startDate", ""),
             "end_date": meta.get("endDate", ""),
             "days_count": len(day_configs),
-            "node_count": len(rows),
+            "node_count": _regular_node_count(trip_data),
             "last_modified_utc": last_modified_utc,
             "status": "active",
         },
@@ -489,6 +592,11 @@ def _worksheet_rows(worksheet) -> list[dict[str, Any]]:
     return rows
 
 
+def _row_node_type(row: dict[str, Any]) -> str:
+    node_type = _safe_text(row.get("Node Type") or row.get("node_type")).strip().lower()
+    return node_type if node_type in {"start", "regular", "end"} else "regular"
+
+
 def _validation_issue(
     row: int | None,
     field: str,
@@ -507,6 +615,85 @@ def _validation_issue(
         "original_value": original_value,
         "corrected_value": corrected_value,
     }
+
+
+def _endpoint_config_from_sheet_row(
+    row: dict[str, Any],
+    issues: list[dict[str, Any]],
+) -> tuple[int | None, str | None, dict[str, Any]]:
+    row_number = row.get("_row_number")
+    day = _safe_day(row.get("Day"))
+    node_type = _row_node_type(row)
+    updates: dict[str, Any] = {}
+    if day is None:
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Day",
+                "Day must be a positive number; endpoint row skipped.",
+                severity="error",
+                original_value=_safe_text(row.get("Day")),
+            )
+        )
+        return None, None, updates
+
+    place_name = _safe_text(row.get("Place Name")).strip()
+    if not place_name:
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Place Name",
+                "Endpoint place name is required; endpoint row skipped.",
+                severity="error",
+            )
+        )
+        return day, None, updates
+
+    arrival_time = _safe_text(row.get("Arrival Time")).strip()
+    if arrival_time and not _valid_time(arrival_time):
+        issues.append(
+            _validation_issue(
+                row_number,
+                "Arrival Time",
+                "Arrival time must use HH:MM format; endpoint time was ignored.",
+                original_value=arrival_time,
+            )
+        )
+        arrival_time = ""
+
+    if node_type == "start":
+        updates["startLocation"] = place_name
+        updates["startNotes"] = _safe_text(row.get("Notes"))
+        if arrival_time:
+            updates["startTime"] = arrival_time
+        lat = _safe_float(row.get("lat"), fallback=None)
+        lng = _safe_float(row.get("lng"), fallback=None)
+        if lat is not None:
+            updates["startLat"] = lat
+        if lng is not None:
+            updates["startLng"] = lng
+    elif node_type == "end":
+        updates["endLocation"] = place_name
+        updates["endNotes"] = _safe_text(row.get("Notes"))
+        lat = _safe_float(row.get("lat"), fallback=None)
+        lng = _safe_float(row.get("lng"), fallback=None)
+        if lat is not None:
+            updates["endLat"] = lat
+        if lng is not None:
+            updates["endLng"] = lng
+        transport_from_previous = (
+            row.get("Transport From Previous (mins)")
+            if "Transport From Previous (mins)" in row
+            else row.get("Transport To Next (mins)")
+        )
+        updates["endNodeData"] = {
+            "transport_mode": _safe_text(row.get("Transport Mode") or "transit"),
+            "manual_transport_time": _safe_number(
+                transport_from_previous,
+                fallback=0,
+            ) or None,
+        }
+    return day, node_type, updates
 
 
 def _node_from_sheet_row(row: dict[str, Any], issues: list[dict[str, Any]]) -> tuple[int | None, dict[str, Any] | None]:
@@ -631,8 +818,22 @@ def import_trip_from_sheet(trip_id: str) -> dict[str, Any]:
     meta = metadata.get("meta") or {}
     validation_errors: list[dict[str, Any]] = []
     nodes_by_day: dict[str, list[dict[str, Any]]] = {}
+    endpoint_day_configs: dict[str, dict[str, Any]] = {}
 
     for row in _worksheet_rows(worksheet):
+        if _row_node_type(row) in {"start", "end"}:
+            day, _node_type, updates = _endpoint_config_from_sheet_row(row, validation_errors)
+            if day is not None and updates:
+                day_key = str(day)
+                current_updates = endpoint_day_configs.setdefault(day_key, {})
+                if "endNodeData" in updates and "endNodeData" in current_updates:
+                    current_updates["endNodeData"] = {
+                        **current_updates["endNodeData"],
+                        **updates["endNodeData"],
+                    }
+                    updates = {key: value for key, value in updates.items() if key != "endNodeData"}
+                current_updates.update(updates)
+            continue
         day, node = _node_from_sheet_row(row, validation_errors)
         if day is None or node is None:
             continue
@@ -645,6 +846,17 @@ def import_trip_from_sheet(trip_id: str) -> dict[str, Any]:
     )
     start_date = meta.get("startDate") or summary.get("start_date") or ""
     end_date = meta.get("endDate") or summary.get("end_date") or start_date
+    day_configs = _ensure_day_configs(
+        metadata.get("dayConfigs") or {},
+        {**nodes_by_day, **endpoint_day_configs},
+        summary,
+    )
+    for day, updates in endpoint_day_configs.items():
+        day_configs[day] = {
+            **day_configs.get(day, _default_day_config()),
+            **updates,
+        }
+
     trip_data = {
         "meta": {
             "tripId": trip_id,
@@ -654,11 +866,7 @@ def import_trip_from_sheet(trip_id: str) -> dict[str, Any]:
             "localLastModifiedUtc": meta.get("localLastModifiedUtc"),
             "sheetLastModifiedUtc": last_modified_utc,
         },
-        "dayConfigs": _ensure_day_configs(
-            metadata.get("dayConfigs") or {},
-            nodes_by_day,
-            summary,
-        ),
+        "dayConfigs": day_configs,
         "nodesByDay": nodes_by_day,
     }
     return {

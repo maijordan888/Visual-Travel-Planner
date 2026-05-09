@@ -68,6 +68,50 @@
     border: 1px solid #e5e7eb;
 }
 
+.node-notes {
+    margin-top: 10px;
+}
+
+.node-notes-toggle {
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--primary);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.node-notes-toggle:hover,
+.node-notes-toggle.has-notes {
+    background: rgba(99, 102, 241, 0.16);
+    border-color: rgba(99, 102, 241, 0.42);
+}
+
+.node-notes-input {
+    width: 100%;
+    min-height: 86px;
+    margin-top: 8px;
+    resize: vertical;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.86);
+    font: inherit;
+    line-height: 1.45;
+}
+
+.node-notes-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
 /* 中間層交通資訊 */
 .transport-layer {
     margin-bottom: 12px;
