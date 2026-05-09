@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Cloud, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import ItineraryNode from './components/ItineraryNode';
 import MapModal from './components/MapModal';
+import TripLibraryModal from './components/TripLibraryModal';
 import { useTripStore } from './store/useTripStore';
 
 const apiKey =
@@ -16,11 +17,13 @@ export default function App() {
   const {
     activeDay, setActiveDay, setDayConfig, nodesByDay,
     tripTitle, setTripTitle, startDate, endDate, setTripDates, createNewTrip, dayConfigs,
-    removeDay
+    removeDay, tripId, localLastModifiedUtc, sheetLastModifiedUtc,
+    setSheetLastModified, loadTripFromArchive
   } = useTripStore();
   const dailyNodes = nodesByDay[activeDay] || [];
   const dayConfig = dayConfigs[activeDay] || dayConfigs[1];
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTripLibraryOpen, setIsTripLibraryOpen] = useState(false);
   const [isEditingTrip, setIsEditingTrip] = useState(false);
   const [confirmingDeleteDayId, setConfirmingDeleteDayId] = useState(null);
   const days = Object.keys(dayConfigs).map(Number).sort((a, b) => a - b);
@@ -33,6 +36,28 @@ export default function App() {
   const [endPickerKey, setEndPickerKey] = useState(Date.now() + 1);
   const [isStartFocused, setIsStartFocused] = useState(false);
   const [isEndFocused, setIsEndFocused] = useState(false);
+
+  const currentTripPayload = useMemo(() => ({
+    meta: {
+      tripId,
+      tripTitle,
+      startDate,
+      endDate,
+      localLastModifiedUtc,
+      sheetLastModifiedUtc,
+    },
+    dayConfigs,
+    nodesByDay,
+  }), [
+    tripId,
+    tripTitle,
+    startDate,
+    endDate,
+    localLastModifiedUtc,
+    sheetLastModifiedUtc,
+    dayConfigs,
+    nodesByDay,
+  ]);
 
   // Auto-scroll: 當新增節點後捲動到最後新增的節點
   useEffect(() => {
@@ -225,6 +250,9 @@ export default function App() {
           }}>
             <Plus size={16} /> 新增一天
           </button>
+          <button className="btn outline" style={{ justifyContent: 'center', marginBottom: '8px' }} onClick={() => setIsTripLibraryOpen(true)}>
+            <Cloud size={16} /> 行程庫
+          </button>
           <button className="btn" style={{ justifyContent: 'center', background: 'var(--primary)', color: '#fff' }} onClick={() => {
             createNewTrip();
             setIsEditingTrip(true);
@@ -375,6 +403,21 @@ export default function App() {
           }}
         />
       )}
+
+      <TripLibraryModal
+        isOpen={isTripLibraryOpen}
+        onClose={() => setIsTripLibraryOpen(false)}
+        currentTrip={currentTripPayload}
+        onExported={(result) => {
+          const lastModifiedUtc = result?.last_modified_utc || result?.lastModifiedUtc;
+          if (lastModifiedUtc) {
+            setSheetLastModified(lastModifiedUtc);
+          }
+        }}
+        onImported={(tripData) => {
+          loadTripFromArchive(tripData);
+        }}
+      />
     </APIProvider>
   );
 }
