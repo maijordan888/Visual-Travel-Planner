@@ -247,10 +247,10 @@ API 回傳：
 沿用現有 `API_BASE` 與 JSON header 寫法，不要直接呼叫相對路徑。
 
 ```js
-async listSheetTrips() { ... }        // GET /sheets/trips
-async exportTrip(tripId, payload) { ... } // POST /sheets/export/{tripId}
-async importTrip(tripId) { ... }      // GET /sheets/import/{tripId}
-async deleteSheetTrip(tripId) { ... } // DELETE /sheets/trips/{tripId}
+async listSheetTrips() { ... }                    // GET /sheets/trips
+async exportTripToSheet(tripId, payload) { ... }  // POST /sheets/export/{tripId}
+async importTripFromSheet(tripId) { ... }         // GET /sheets/import/{tripId}
+async deleteSheetTrip(tripId) { ... }             // DELETE /sheets/trips/{tripId}
 ```
 
 建議同時補一個共用 `requestJson` helper，集中處理非 2xx 與 JSON parse error。
@@ -269,8 +269,17 @@ async deleteSheetTrip(tripId) { ... } // DELETE /sheets/trips/{tripId}
   - `載入`: 呼叫 `GET /sheets/import/{trip_id}`，成功後 `loadTripFromArchive(trip_data)`。
   - `覆寫同步`: 將目前 Zustand 行程組成 `TripExportPayload`，呼叫 `POST /sheets/export/{trip_id}`。
   - `刪除`: 呼叫 `DELETE /sheets/trips/{trip_id}`，成功後刷新列表。
-- 若 `sheetLastModifiedUtc` 比 local 新，載入或覆寫前顯示衝突確認 UI。
+- v1 不做自動衝突合併；若 `sheetLastModifiedUtc` 比 local 新，先以手動覆寫 / 讀回入口為主，完整衝突確認 UI 放到後續分支。
 - import 有 `validation_errors` 時，在 modal 中顯示警告列表。
+
+### Frontend Library Branch Notes
+
+`codex-gsheet-frontend-library` 已先完成前端手動同步入口：
+
+- `frontend/src/api.js` wrapper 名稱固定為 `listSheetTrips()`、`exportTripToSheet()`、`importTripFromSheet()`、`deleteSheetTrip()`。
+- `TripLibraryModal` 只處理手動 list/export/import/delete 入口，後端尚未完成時以錯誤提示呈現，不做 mock success。
+- App 以 Phase 0 store contract 組 payload；export 成功後回寫 `setSheetLastModified(last_modified_utc)`，import 成功後呼叫 `loadTripFromArchive(trip_data)`。
+- UI 操作驗證流程記錄於 `.agent/workflows/trip-library-cloud-sync.md`。
 
 ---
 
