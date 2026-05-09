@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -8,7 +8,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import models, schemas, services
+import models, schemas, services, sheets_service
 from database import engine, SessionLocal
 
 models.Base.metadata.create_all(bind=engine)
@@ -132,6 +132,29 @@ def ai_recommend_places(req: AiRecommendRequest):
         max_recommend=req.max_recommend,
     )
     return {"places": results, "total": len(results), "mode": "ai"}
+
+
+# --- Google Sheets Endpoints ---
+@app.get("/sheets/trips", response_model=List[schemas.SheetTripSummary])
+def list_sheets_trips():
+    try:
+        return sheets_service.get_all_trips_summary()
+    except sheets_service.SheetsConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google Sheets error: {exc}") from exc
+
+
+@app.post("/sheets/export/{trip_id}", response_model=schemas.SheetExportResponse)
+def export_trip_to_sheets(trip_id: str, payload: schemas.TripExportPayload):
+    try:
+        return sheets_service.export_trip_to_sheet(trip_id, payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except sheets_service.SheetsConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google Sheets error: {exc}") from exc
 
 
 # --- Trip Endpoints ---
