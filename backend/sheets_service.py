@@ -7,6 +7,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+BACKEND_DIR = Path(__file__).resolve().parent
+load_dotenv(BACKEND_DIR / ".env")
 load_dotenv()
 
 SUMMARY_SHEET_NAME = "__SUMMARY__"
@@ -50,7 +52,7 @@ SCOPES = [
 ]
 
 DEFAULT_CREDENTIALS_PATH = (
-    Path(__file__).resolve().parent / "credentials" / "gsheet_service_account.json"
+    BACKEND_DIR / "credentials" / "gsheet_service_account.json"
 )
 
 
