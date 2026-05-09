@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 
 # ======== Trips ========
@@ -44,3 +44,48 @@ class DailyNodeResponse(DailyNodeBase):
 
     class Config:
         from_attributes = True
+
+# ======== Google Sheets Sync ========
+class TripMeta(BaseModel):
+    tripId: str
+    tripTitle: str
+    startDate: str
+    endDate: str
+    localLastModifiedUtc: Optional[str] = None
+    sheetLastModifiedUtc: Optional[str] = None
+
+class TripExportPayload(BaseModel):
+    meta: TripMeta
+    dayConfigs: Dict[str, Any] = Field(default_factory=dict)
+    nodesByDay: Dict[str, List[Dict[str, Any]]] = Field(default_factory=dict)
+
+class SheetValidationIssue(BaseModel):
+    row: Optional[int] = None
+    field: str
+    issue: str
+    severity: str = "warning"
+    auto_fixed: bool = False
+    original_value: Optional[str] = None
+    corrected_value: Optional[str] = None
+
+class SheetTripSummary(BaseModel):
+    trip_id: str
+    trip_name: str
+    start_date: str
+    end_date: str
+    days_count: int
+    node_count: int
+    last_modified_utc: str
+    status: str = "active"
+
+class SheetExportResponse(BaseModel):
+    success: bool
+    sheet_url: str
+    last_modified_utc: str
+
+class SheetImportResponse(BaseModel):
+    trip_data: TripExportPayload
+    validation_errors: List[SheetValidationIssue] = Field(default_factory=list)
+
+class SheetDeleteResponse(BaseModel):
+    success: bool

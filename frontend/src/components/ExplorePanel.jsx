@@ -139,10 +139,14 @@ export default function ExplorePanel({ mapCenter, onSetCenter, onAddPlace, onHov
   const handleAdd = (place) => {
     onAddPlace?.({
       id: place.place_id,
+      place_id: place.place_id,
       name: place.name,
       rating: place.rating,
       durationMins: 90,
       tag: place.reason || place.types?.[0] || '周邊推薦',
+      address: place.address,
+      types: place.types || [],
+      tags: place.tags || [],
       lat: place.lat,
       lng: place.lng,
       photo_url: buildPhotoUrl(place.photo_ref),

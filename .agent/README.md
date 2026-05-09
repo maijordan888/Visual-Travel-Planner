@@ -20,7 +20,8 @@
 │   ├── open-add-place-ui.md
 │   ├── reset-persistent-data.md
 │   ├── search-and-confirm-place.md
-│   └── swap-backup-option.md
+│   ├── swap-backup-option.md
+│   └── trip-library-cloud-sync.md
 └── todos/                 ← 「要做什麼」—— 待辦清單與 QA 報告
     └── QA_REPORT.md
 ```

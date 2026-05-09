@@ -1,5 +1,30 @@
 const API_BASE = "http://localhost:8000";
 
+async function requestJson(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (error) {
+    if (res.ok) return null;
+    throw new Error(`API ${res.status}: response is not valid JSON`);
+  }
+
+  if (!res.ok) {
+    const detail = data?.detail || data?.error || data?.message || `API ${res.status}`;
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+
+  return data;
+}
+
 export const api = {
   async getDirectionsTime(origin, destination, mode, forceRefresh) {
     const res = await fetch(`${API_BASE}/directions/calculate-time`, {
@@ -77,5 +102,26 @@ export const api = {
       body: JSON.stringify(nodeData),
     });
     return await res.json();
+  },
+
+  async listSheetTrips() {
+    return await requestJson('/sheets/trips');
+  },
+
+  async exportTripToSheet(tripId, payload) {
+    return await requestJson(`/sheets/export/${encodeURIComponent(tripId)}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async importTripFromSheet(tripId) {
+    return await requestJson(`/sheets/import/${encodeURIComponent(tripId)}`);
+  },
+
+  async deleteSheetTrip(tripId) {
+    return await requestJson(`/sheets/trips/${encodeURIComponent(tripId)}`, {
+      method: 'DELETE',
+    });
   },
 };

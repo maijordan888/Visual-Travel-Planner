@@ -1,12 +1,16 @@
 node_modules/
 dist/
 .env
+backend/.env
+backend/.env.*
+!backend/.env.example
 __pycache__/
 *.pyc
 .DS_Store
 travel_planner.db
 venv/
 backend/venv/
+backend/credentials/
 .python-version
 .pytest_cache/
 .coverage
