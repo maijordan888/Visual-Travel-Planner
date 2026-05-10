@@ -481,11 +481,13 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .ticket:nth-child(3) { border-color: rgba(37, 99, 235, 0.35); background: #eff6ff; }
     .ticket:nth-child(4) { border-color: rgba(190, 24, 93, 0.32); background: #fdf2f8; }
     .doodle-strip {
-      height: 108px;
-      margin: -6px 0 20px;
-      background-image: var(--asset-sheet);
-      background-size: 100% auto;
-      background-position: center bottom;
+      height: 132px;
+      margin: -2px 0 22px;
+      background-image:
+        linear-gradient(rgba(255, 253, 248, 0.82), rgba(255, 253, 248, 0.82)),
+        var(--asset-sheet);
+      background-size: 100% 100%, 92% auto;
+      background-position: center, center 96%;
       background-repeat: no-repeat;
       opacity: 0.92;
       break-inside: avoid;
@@ -651,7 +653,11 @@ export function buildTripPrintHtml(tripData, options = {}) {
       .cover-photo { min-height: 220px; }
       h1 { font-size: 2rem; }
       .ticket-grid { grid-template-columns: 1fr 1fr; }
-      .doodle-strip { height: 72px; }
+      .doodle-strip {
+        height: 96px;
+        background-size: 100% 100%, 108% auto;
+        background-position: center, center 96%;
+      }
       .day { padding: 16px; }
       .day-header { grid-template-columns: 1fr; gap: 10px; }
       .timeline-card { grid-template-columns: 1fr; gap: 6px; }
