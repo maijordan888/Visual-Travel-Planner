@@ -238,8 +238,8 @@
     box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2);
 }
 .node-card.pending-mode {
-    border: 1px dashed #cbd5e1;
-    background: #f8fafc;
+    border: 1px dashed rgba(251, 146, 60, 0.34);
+    background: var(--surface-bg);
 }
 .card-header.pending h4 {
     color: var(--text-muted);
