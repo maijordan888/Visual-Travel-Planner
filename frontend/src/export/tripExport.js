@@ -57,7 +57,9 @@ export const BOOKLET_STYLE_OPTIONS = [
     pageBg: '#edf5ec',
     dayBg: 'rgba(255, 253, 248, 0.94)',
     cardBg: '#ffffff',
-    timelineLine: 'rgba(249, 115, 22, 0.78)',
+    timelineLine: 'rgba(15, 118, 110, 0.46)',
+    stampColor: '#0f766e',
+    timeColor: '#0f766e',
     coverPosition: 'left top',
     stripPosition: 'center 96%',
     sideLeftPosition: '4% 92%',
@@ -75,7 +77,9 @@ export const BOOKLET_STYLE_OPTIONS = [
     pageBg: '#e2f0ee',
     dayBg: 'rgba(255, 254, 250, 0.95)',
     cardBg: '#ffffff',
-    timelineLine: 'rgba(239, 108, 77, 0.7)',
+    timelineLine: 'rgba(47, 111, 149, 0.52)',
+    stampColor: '#2f6f95',
+    timeColor: '#2f6f95',
     coverPosition: 'left top',
     stripPosition: 'center 96%',
     sideLeftPosition: '2% 92%',
@@ -94,6 +98,8 @@ export const BOOKLET_STYLE_OPTIONS = [
     dayBg: 'rgba(255, 248, 232, 0.95)',
     cardBg: '#fffdf7',
     timelineLine: 'rgba(126, 88, 57, 0.38)',
+    stampColor: '#8a6b4e',
+    timeColor: '#8a6b4e',
     coverPosition: 'center top',
     stripPosition: 'center 96%',
     sideLeftPosition: '18% 92%',
@@ -111,7 +117,9 @@ export const BOOKLET_STYLE_OPTIONS = [
     pageBg: '#e1f7f5',
     dayBg: 'rgba(255, 254, 248, 0.95)',
     cardBg: '#ffffff',
-    timelineLine: 'rgba(239, 125, 50, 0.72)',
+    timelineLine: 'rgba(56, 189, 248, 0.56)',
+    stampColor: '#38bdf8',
+    timeColor: '#0284c7',
     coverPosition: 'right top',
     stripPosition: 'center 96%',
     sideLeftPosition: '8% 92%',
@@ -129,7 +137,7 @@ export const BOOKLET_STYLE_OPTIONS = [
     pageBg: '#050816',
     dayBg: 'rgba(9, 16, 34, 0.72)',
     cardBg: 'rgba(15, 23, 42, 0.84)',
-    timelineLine: 'rgba(245, 158, 11, 0.72)',
+    timelineLine: 'rgba(125, 211, 252, 0.58)',
     ink: '#eef6ff',
     muted: '#b7c7df',
     line: 'rgba(125, 211, 252, 0.22)',
@@ -837,7 +845,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       .day { padding: 16px; }
       .day-header { grid-template-columns: 1fr; gap: 10px; }
       .timeline-card { grid-template-columns: 1fr; gap: 6px; }
-      .time-block { border-left: 0; border-bottom: 3px solid var(--orange); padding: 0 0 6px; }
+      .time-block { border-left: 0; border-bottom: 3px solid var(--timeline-line); padding: 0 0 6px; }
       .keepsake { grid-template-columns: 1fr; }
     }
     @media (max-width: 1280px) {
