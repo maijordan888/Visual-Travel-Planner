@@ -1,4 +1,4 @@
-# QA 測試報告 (Visual Travel Planner)
+﻿# QA 測試報告 (Visual Travel Planner)
 **測試時間**: 2026-05-05
 
 ## 測試總結 (QA Report)

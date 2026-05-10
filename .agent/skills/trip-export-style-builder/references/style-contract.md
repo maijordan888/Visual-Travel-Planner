@@ -1,4 +1,4 @@
-# Trip Export Style Contract
+﻿# Trip Export Style Contract
 
 This reference is for adding or changing offline export booklet styles in `travel_ai`.
 

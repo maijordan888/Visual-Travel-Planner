@@ -1,4 +1,4 @@
----
+﻿---
 name: trip-export-style-builder
 description: Create or modify reusable offline trip export styles for the travel_ai project. Use when adding a new Markdown/HTML/PDF booklet style, changing TripExportModal style selection, generating static travel booklet artwork, tuning print CSS palettes, or validating that export themes render correctly across Markdown preview, HTML preview, and browser print/PDF.
 ---

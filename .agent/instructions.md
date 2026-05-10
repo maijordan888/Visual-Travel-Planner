@@ -1,4 +1,4 @@
-# AI Agent 行為規範 (Instructions)
+﻿# AI Agent 行為規範 (Instructions)
 
 > 此文件定義所有參與本專案開發的 AI Agent 必須遵守的行為規範。  
 > **讀取順序**：請先閱讀 `.agent/README.md`（目錄導覽），再閱讀本文件。
@@ -13,6 +13,8 @@
 2. `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md` — 建立技術背景知識
 3. `.agent/todos/QA_REPORT.md` — 確認目前已知問題與優先度
 4. 若任務涉及特定 UI 操作，再查找 `.agent/workflows/` 對應的 workflow 文件
+
+**編碼規範**：`.agent/**/*.md` 一律使用 UTF-8。Windows PowerShell 讀取時請優先指定 `-Encoding UTF8`；若未指定，也不應出現中文亂碼。
 
 ---
 

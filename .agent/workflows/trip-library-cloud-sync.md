@@ -1,4 +1,4 @@
----
+﻿---
 description: 操作前端「行程庫」進行 Google Sheets 手動同步驗證。
 ---
 

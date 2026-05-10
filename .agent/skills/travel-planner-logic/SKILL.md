@@ -1,4 +1,4 @@
-# Skill: Visual Travel Planner Architecture
+﻿# Skill: Visual Travel Planner Architecture
 
 此 Skill 旨在提供專案開發者與 AI Agent 快速理解「Visual Travel Planner」的技術框架與核心邏輯。
 
