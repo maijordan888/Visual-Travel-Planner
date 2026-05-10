@@ -126,10 +126,11 @@ export const BOOKLET_STYLE_OPTIONS = [
     sky: '#8b5cf6',
     rose: '#ec4899',
     paper: '#fffaf0',
-    pageBg: '#ece7ff',
+    pageBg: '#050816',
     dayBg: 'rgba(255, 250, 240, 0.95)',
     cardBg: '#fffefa',
     timelineLine: 'rgba(245, 158, 11, 0.72)',
+    darkBackdrop: true,
     coverPosition: 'left top',
     stripPosition: 'center 96%',
     sideLeftPosition: '8% 92%',
@@ -455,6 +456,29 @@ export function buildTripPrintHtml(tripData, options = {}) {
   const lastDay = trip.days[trip.days.length - 1];
   const bookletStyle = getBookletStyle(options.bookletStyle);
   const assetSheetUrl = resolveBookletAssetUrl(bookletStyle, options);
+  const pageBackground = bookletStyle.darkBackdrop
+    ? `
+        radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.42) 0 1.3px, transparent 1.7px),
+        radial-gradient(circle at 76% 12%, rgba(125, 211, 252, 0.46) 0 1.5px, transparent 1.9px),
+        radial-gradient(circle at 88% 62%, rgba(244, 114, 182, 0.34) 0 1.4px, transparent 1.8px),
+        radial-gradient(circle at 28% 72%, rgba(253, 186, 116, 0.34) 0 1.2px, transparent 1.7px),
+        radial-gradient(circle at 50% 38%, rgba(14, 165, 233, 0.2), transparent 34%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.78) 44%, rgba(7, 10, 25, 0.98)),
+        linear-gradient(180deg, #050816, #0f1230 52%, #050816)
+      `
+    : `
+        linear-gradient(115deg, rgba(255, 247, 237, 0.9) 0 18%, transparent 18% 100%),
+        linear-gradient(295deg, rgba(224, 242, 254, 0.72) 0 16%, transparent 16% 100%),
+        radial-gradient(circle at 22px 22px, rgba(15, 118, 110, 0.16) 0 1.7px, transparent 1.9px),
+        radial-gradient(circle at 60px 60px, rgba(249, 115, 22, 0.14) 0 1.4px, transparent 1.7px),
+        repeating-linear-gradient(0deg, rgba(199, 185, 157, 0.08) 0 1px, transparent 1px 34px),
+        repeating-linear-gradient(90deg, rgba(199, 185, 157, 0.07) 0 1px, transparent 1px 34px),
+        linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent 42%),
+        linear-gradient(180deg, ${bookletStyle.pageBg}, #fffaf0 54%, #f7fbff)
+      `;
+  const pageBackgroundSize = bookletStyle.darkBackdrop
+    ? '220px 220px, 280px 280px, 260px 260px, 240px 240px, auto, auto, auto'
+    : 'auto, auto, 96px 96px, 112px 112px, auto, auto, auto, auto';
   const dayHtml = trip.days.map((day) => `
     <section class="day">
       <div class="day-header">
@@ -513,16 +537,8 @@ export function buildTripPrintHtml(tripData, options = {}) {
       margin: 0;
       font-family: "Inter", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
       line-height: 1.6;
-      background:
-        linear-gradient(115deg, rgba(255, 247, 237, 0.9) 0 18%, transparent 18% 100%),
-        linear-gradient(295deg, rgba(224, 242, 254, 0.72) 0 16%, transparent 16% 100%),
-        radial-gradient(circle at 22px 22px, rgba(15, 118, 110, 0.16) 0 1.7px, transparent 1.9px),
-        radial-gradient(circle at 60px 60px, rgba(249, 115, 22, 0.14) 0 1.4px, transparent 1.7px),
-        repeating-linear-gradient(0deg, rgba(199, 185, 157, 0.08) 0 1px, transparent 1px 34px),
-        repeating-linear-gradient(90deg, rgba(199, 185, 157, 0.07) 0 1px, transparent 1px 34px),
-        linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent 42%),
-        linear-gradient(180deg, ${bookletStyle.pageBg}, #fffaf0 54%, #f7fbff);
-      background-size: auto, auto, 96px 96px, 112px 112px, auto, auto, auto, auto;
+      background: ${pageBackground};
+      background-size: ${pageBackgroundSize};
       min-height: 100vh;
     }
     body::before,
