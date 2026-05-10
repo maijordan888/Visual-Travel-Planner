@@ -125,11 +125,16 @@ export const BOOKLET_STYLE_OPTIONS = [
     teal: '#06b6d4',
     sky: '#8b5cf6',
     rose: '#ec4899',
-    paper: '#fffaf0',
+    paper: 'rgba(11, 18, 35, 0.76)',
     pageBg: '#050816',
-    dayBg: 'rgba(255, 250, 240, 0.95)',
-    cardBg: '#fffefa',
+    dayBg: 'rgba(9, 16, 34, 0.72)',
+    cardBg: 'rgba(15, 23, 42, 0.84)',
     timelineLine: 'rgba(245, 158, 11, 0.72)',
+    ink: '#eef6ff',
+    muted: '#b7c7df',
+    line: 'rgba(125, 211, 252, 0.22)',
+    ticketBase: '#0b1223',
+    subtleBase: '#111a31',
     darkBackdrop: true,
     coverPosition: 'left top',
     stripPosition: 'center 96%',
@@ -519,10 +524,10 @@ export function buildTripPrintHtml(tripData, options = {}) {
         color: #243142;
         background: #f4f7f2;
         --asset-sheet: url("${escapeHtml(assetSheetUrl)}");
-        --ink: #243142;
-        --muted: #667085;
+        --ink: ${bookletStyle.ink || '#243142'};
+        --muted: ${bookletStyle.muted || '#667085'};
       --paper: ${bookletStyle.paper};
-      --line: #e4dccb;
+      --line: ${bookletStyle.line || '#e4dccb'};
       --orange: ${bookletStyle.accent};
       --teal: ${bookletStyle.teal};
       --sky: ${bookletStyle.sky};
@@ -531,6 +536,8 @@ export function buildTripPrintHtml(tripData, options = {}) {
       --day-bg: ${bookletStyle.dayBg};
       --card-bg: ${bookletStyle.cardBg};
       --timeline-line: ${bookletStyle.timelineLine};
+      --ticket-base: ${bookletStyle.ticketBase || '#fff'};
+      --subtle-base: ${bookletStyle.subtleBase || '#fff'};
     }
     * { box-sizing: border-box; }
     body {
@@ -592,6 +599,11 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .cover-copy { padding: 34px; display: flex; flex-direction: column; justify-content: space-between; gap: 28px; }
     .kicker { color: var(--teal); font-weight: 900; font-size: 0.82rem; }
     h1 { font-size: 2.6rem; line-height: 1.12; margin: 10px 0 12px; letter-spacing: 0; }
+    h1,
+    .ticket strong,
+    h3 {
+      color: var(--ink);
+    }
     .cover p { color: var(--muted); margin: 0; }
     .cover-photo {
       min-height: 100%;
@@ -637,9 +649,9 @@ export function buildTripPrintHtml(tripData, options = {}) {
     }
     .ticket span { display: block; color: var(--muted); font-size: 0.76rem; font-weight: 800; }
     .ticket strong { display: block; margin-top: 4px; font-size: 1rem; line-height: 1.35; }
-    .ticket:nth-child(2) { border-color: color-mix(in srgb, var(--teal) 48%, #fff); background: color-mix(in srgb, var(--teal) 10%, #fff); }
-    .ticket:nth-child(3) { border-color: color-mix(in srgb, var(--sky) 42%, #fff); background: color-mix(in srgb, var(--sky) 9%, #fff); }
-    .ticket:nth-child(4) { border-color: color-mix(in srgb, var(--rose) 38%, #fff); background: color-mix(in srgb, var(--rose) 8%, #fff); }
+    .ticket:nth-child(2) { border-color: color-mix(in srgb, var(--teal) 48%, var(--ticket-base)); background: color-mix(in srgb, var(--teal) 12%, var(--ticket-base)); }
+    .ticket:nth-child(3) { border-color: color-mix(in srgb, var(--sky) 44%, var(--ticket-base)); background: color-mix(in srgb, var(--sky) 12%, var(--ticket-base)); }
+    .ticket:nth-child(4) { border-color: color-mix(in srgb, var(--rose) 42%, var(--ticket-base)); background: color-mix(in srgb, var(--rose) 12%, var(--ticket-base)); }
     .doodle-strip {
       height: 132px;
       margin: -2px 0 22px;
@@ -738,7 +750,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .time-block small { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
     .body {
       background: var(--card-bg);
-      border: 1px solid #e7e0d1;
+      border: 1px solid var(--line);
       border-radius: 8px;
       padding: 14px;
       box-shadow: 0 10px 22px rgba(36, 49, 66, 0.06);
@@ -754,7 +766,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       background: #e5e7eb;
       border: 1px solid #f1f5f9;
     }
-    ul { margin: 0; padding-left: 18px; color: #334155; }
+    ul { margin: 0; padding-left: 18px; color: var(--ink); }
     li + li { margin-top: 3px; }
     blockquote {
       margin: 12px 0 0;
@@ -762,34 +774,34 @@ export function buildTripPrintHtml(tripData, options = {}) {
       border: 1px solid #fed7aa;
       border-left: 4px solid var(--orange);
       border-radius: 8px;
-      background: #fff7ed;
-      color: #374151;
+      background: color-mix(in srgb, var(--orange) 12%, var(--subtle-base));
+      color: var(--ink);
     }
     .memo-box {
       margin-top: 22px;
       padding: 14px;
       border: 1px dashed #c7b99d;
       border-radius: 8px;
-      background: linear-gradient(#fff 0 0) padding-box;
+      background: linear-gradient(var(--card-bg) 0 0) padding-box;
       break-inside: avoid;
     }
     .memo-box h3 { font-size: 1rem; margin-bottom: 10px; color: var(--rose); }
     .memo-lines {
       height: 96px;
-      background: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, #e7e0d1 28px);
+      background: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--line) 28px);
     }
     .appendix {
       margin: 28px 0;
       padding: 22px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #fff;
+      background: var(--card-bg);
       break-before: page;
     }
     .appendix h2 { margin-bottom: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
     th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; text-align: left; vertical-align: top; }
-    th { color: var(--muted); background: #f8fafc; }
+    th { color: var(--muted); background: color-mix(in srgb, var(--sky) 8%, var(--subtle-base)); }
     .keepsake {
       margin-top: 18px;
       display: grid;
@@ -803,9 +815,9 @@ export function buildTripPrintHtml(tripData, options = {}) {
       padding: 12px;
       color: var(--muted);
       font-weight: 800;
-      background: #fffdf8;
+      background: var(--paper);
     }
-    a { color: #0f766e; overflow-wrap: anywhere; }
+    a { color: var(--teal); overflow-wrap: anywhere; }
     @media (max-width: 560px) {
       main { padding: 14px 10px 44px; }
       .cover { grid-template-columns: 1fr; min-height: 0; }
