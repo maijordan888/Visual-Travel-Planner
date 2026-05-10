@@ -15,6 +15,12 @@ const addMinutesToTime = (time, minutes = 0) => {
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 };
 
+const normalizeTimeLabel = (time) => {
+  const match = String(time || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return cleanText(time);
+  return `${pad2(Number(match[1]))}:${match[2]}`;
+};
+
 const cleanText = (value) => String(value ?? '').trim();
 
 const toNumberOrNull = (value) => {
@@ -81,8 +87,8 @@ const normalizeRoutePoint = ({
     nodeType,
     dayNumber,
     title: cleanText(title) || '未命名地點',
-    arrivalTime: cleanText(arrivalTime),
-    departureTime: cleanText(departureTime),
+    arrivalTime: normalizeTimeLabel(arrivalTime),
+    departureTime: normalizeTimeLabel(departureTime),
     stayDurationMins: toNumberOrNull(stayDurationMins),
     transportFromPreviousMins: toNumberOrNull(transportFromPreviousMins),
     transportMode: cleanText(transportMode),
@@ -334,10 +340,7 @@ const renderHtmlPoint = (point, options = {}) => {
         <small>${typeText}</small>
       </div>
       <div class="body">
-        <div class="card-heading">
-          <p class="type">${typeText}</p>
-          <h3>${escapeHtml(point.title)}</h3>
-        </div>
+        <div class="card-heading"><h3>${escapeHtml(point.title)}</h3></div>
         ${options.includeImages !== false && point.photoUrl ? `<img class="place-photo" src="${escapeHtml(point.photoUrl)}" alt="${escapeHtml(point.title)}" loading="lazy" />` : ''}
         ${details ? `<ul>${details}</ul>` : ''}
         ${point.notes ? `<blockquote>${escapeHtml(point.notes).replace(/\n/g, '<br />')}</blockquote>` : ''}
@@ -404,11 +407,14 @@ export function buildTripPrintHtml(tripData, options = {}) {
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+      font-family: "Inter", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
       line-height: 1.6;
       background:
+        radial-gradient(circle at 18px 18px, rgba(15, 118, 110, 0.13) 0 1.4px, transparent 1.6px),
+        radial-gradient(circle at 58px 58px, rgba(249, 115, 22, 0.12) 0 1.2px, transparent 1.5px),
         linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent 42%),
         linear-gradient(180deg, #f4f7f2, #fffaf0 54%, #f7fbff);
+      background-size: 76px 76px, 92px 92px, auto, auto;
     }
     main { max-width: 820px; margin: 0 auto; padding: 28px 16px 56px; }
     .cover {
@@ -492,12 +498,18 @@ export function buildTripPrintHtml(tripData, options = {}) {
       align-items: center;
       justify-content: center;
       border-radius: 8px;
-      background: var(--sun);
-      border: 1px solid #facc15;
-      color: #92400e;
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.92)),
+        #fffdf8;
+      border: 1px solid rgba(15, 118, 110, 0.38);
+      color: var(--teal);
       font-weight: 900;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62);
     }
-    h2 { margin: 0; font-size: 1.55rem; letter-spacing: 0; }
+    h2 { margin: 0; font-size: 1.55rem; letter-spacing: 0; color: var(--ink); font-weight: 900; }
     .day-header p { margin: 4px 0 0; color: var(--muted); }
     .timeline-card {
       display: grid;
@@ -521,8 +533,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       padding: 14px;
       box-shadow: 0 10px 22px rgba(36, 49, 66, 0.06);
     }
-    .card-heading { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-    .type { margin: 0; color: var(--teal); font-size: 0.78rem; font-weight: 900; }
+    .card-heading { margin-bottom: 10px; }
     h3 { margin: 0; font-size: 1.18rem; line-height: 1.35; }
     .place-photo {
       width: 100%;
