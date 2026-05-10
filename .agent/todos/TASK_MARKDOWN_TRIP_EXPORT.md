@@ -297,7 +297,8 @@ buildTripMarkdown(tripData, options)
 ### Phase 3: Sample Preview
 
 - [ ] 產生東京 2 日遊 sample Markdown。
-- [ ] 建立 preview page 或 local dev-only preview route。
+- [x] 建立列印版 preview flow：`TripExportModal` 的「開啟列印版」會用同一份 export data 產出小冊風 HTML。
+- [x] 列印版已套用旅行小冊方向：封面、票券摘要、每日導覽、景點圖片卡、手寫備註區、票根/紀念章附錄區。
 - [ ] 驗證手機寬度與桌面寬度不重疊。
 - [ ] 交付使用者做美學確認。
 

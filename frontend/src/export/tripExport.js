@@ -311,6 +311,12 @@ export function buildTripMarkdown(tripData, options = {}) {
   ].filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n');
 }
 
+const getFirstPhoto = (trip) => trip.days
+  .flatMap((day) => [day.start, ...day.items, day.end])
+  .find((point) => point.photoUrl)?.photoUrl || '';
+
+const formatDateRange = (trip) => [trip.meta.startDate, trip.meta.endDate].filter(Boolean).join(' - ');
+
 const renderHtmlPoint = (point, options = {}) => {
   const details = [
     point.departureTime && point.nodeType === 'regular' ? `<li>離開：${escapeHtml(point.departureTime)}</li>` : '',
@@ -320,13 +326,19 @@ const renderHtmlPoint = (point, options = {}) => {
     point.rating !== null ? `<li>評分：${point.rating}</li>` : '',
     point.mapsUrl ? `<li><a href="${escapeHtml(point.mapsUrl)}">Google Maps</a></li>` : '',
   ].filter(Boolean).join('');
+  const typeText = point.nodeType === 'start' ? '出發' : point.nodeType === 'end' ? '終點' : '景點';
   return `
     <article class="timeline-card ${point.nodeType}">
-      <div class="time">${escapeHtml(point.arrivalTime || '')}</div>
+      <div class="time-block">
+        <span>${escapeHtml(point.arrivalTime || '--:--')}</span>
+        <small>${typeText}</small>
+      </div>
       <div class="body">
-        <p class="type">${point.nodeType === 'start' ? '出發' : point.nodeType === 'end' ? '終點' : '景點'}</p>
-        <h3>${escapeHtml(point.title)}</h3>
-        ${options.includeImages !== false && point.photoUrl ? `<img src="${escapeHtml(point.photoUrl)}" alt="${escapeHtml(point.title)}" loading="lazy" />` : ''}
+        <div class="card-heading">
+          <p class="type">${typeText}</p>
+          <h3>${escapeHtml(point.title)}</h3>
+        </div>
+        ${options.includeImages !== false && point.photoUrl ? `<img class="place-photo" src="${escapeHtml(point.photoUrl)}" alt="${escapeHtml(point.title)}" loading="lazy" />` : ''}
         ${details ? `<ul>${details}</ul>` : ''}
         ${point.notes ? `<blockquote>${escapeHtml(point.notes).replace(/\n/g, '<br />')}</blockquote>` : ''}
       </div>
@@ -336,14 +348,39 @@ const renderHtmlPoint = (point, options = {}) => {
 
 export function buildTripPrintHtml(tripData, options = {}) {
   const trip = normalizeTripForExport(tripData, options);
+  const heroPhoto = getFirstPhoto(trip);
+  const confirmedCount = trip.days.reduce((count, day) => count + day.items.length, 0);
+  const firstDay = trip.days[0];
+  const lastDay = trip.days[trip.days.length - 1];
   const dayHtml = trip.days.map((day) => `
     <section class="day">
-      <h2>Day ${day.dayNumber}${day.date ? ` - ${escapeHtml(day.date)}` : ''}</h2>
+      <div class="day-header">
+        <span class="day-label">Day ${day.dayNumber}</span>
+        <div>
+          <h2>${day.date ? escapeHtml(day.date) : `第 ${day.dayNumber} 天`}</h2>
+          <p>${escapeHtml(day.start.title)} 到 ${escapeHtml(day.end.title)}</p>
+        </div>
+      </div>
       ${renderHtmlPoint(day.start, options)}
       ${day.items.map((item) => renderHtmlPoint(item, options)).join('')}
       ${renderHtmlPoint(day.end, options)}
+      <section class="memo-box">
+        <h3>旅途中記一筆</h3>
+        <div class="memo-lines"></div>
+      </section>
     </section>
   `).join('');
+  const appendixRows = trip.appendix.places
+    .filter((point) => point.placeId || point.address || point.lat !== null || point.lng !== null)
+    .map((point) => `
+      <tr>
+        <td>Day ${point.dayNumber}</td>
+        <td>${escapeHtml(point.nodeType)}</td>
+        <td>${escapeHtml(point.title)}</td>
+        <td>${escapeHtml(point.placeId || '')}</td>
+        <td>${escapeHtml(point.address || '')}</td>
+      </tr>
+    `).join('');
   return `<!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -351,48 +388,259 @@ export function buildTripPrintHtml(tripData, options = {}) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(trip.meta.title)}｜離線行程</title>
   <style>
-    :root { color: #1f2937; background: #f8fafc; }
+    :root {
+      color: #243142;
+      background: #f4f7f2;
+      --ink: #243142;
+      --muted: #667085;
+      --paper: #fffdf8;
+      --line: #e4dccb;
+      --orange: #f97316;
+      --teal: #0f766e;
+      --sky: #2563eb;
+      --rose: #be185d;
+      --sun: #fef3c7;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Noto Sans TC", "Segoe UI", sans-serif; line-height: 1.6; }
-    main { max-width: 780px; margin: 0 auto; padding: 32px 18px 56px; }
-    header { border-bottom: 3px solid #fb923c; padding-bottom: 22px; margin-bottom: 24px; }
-    h1 { font-size: 2.2rem; margin: 0 0 8px; letter-spacing: 0; }
-    h2 { break-after: avoid; margin: 34px 0 16px; font-size: 1.45rem; }
-    .summary { display: grid; gap: 8px; padding: 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; }
-    .timeline-card { display: grid; grid-template-columns: 70px 1fr; gap: 14px; margin: 16px 0; break-inside: avoid; }
-    .time { color: #f97316; font-weight: 800; padding-top: 4px; }
-    .body { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; }
-    .type { margin: 0 0 4px; color: #6b7280; font-size: 0.82rem; font-weight: 800; }
-    h3 { margin: 0 0 10px; font-size: 1.15rem; }
-    img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 8px; margin: 4px 0 12px; background: #e5e7eb; }
-    ul { margin: 0; padding-left: 18px; }
-    blockquote { margin: 12px 0 0; padding: 10px 12px; border-left: 4px solid #fb923c; background: #fff7ed; color: #374151; }
-    a { color: #ea580c; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+      line-height: 1.6;
+      background:
+        linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent 42%),
+        linear-gradient(180deg, #f4f7f2, #fffaf0 54%, #f7fbff);
+    }
+    main { max-width: 820px; margin: 0 auto; padding: 28px 16px 56px; }
+    .cover {
+      min-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--paper);
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr);
+      break-after: page;
+    }
+    .cover-copy { padding: 34px; display: flex; flex-direction: column; justify-content: space-between; gap: 28px; }
+    .kicker { color: var(--teal); font-weight: 900; font-size: 0.82rem; }
+    h1 { font-size: 2.6rem; line-height: 1.12; margin: 10px 0 12px; letter-spacing: 0; }
+    .cover p { color: var(--muted); margin: 0; }
+    .cover-photo {
+      min-height: 100%;
+      background: linear-gradient(135deg, #fed7aa, #bae6fd);
+      position: relative;
+    }
+    .cover-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cover-photo::after {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.78);
+      border-radius: 8px;
+      pointer-events: none;
+    }
+    .stamp {
+      align-self: flex-start;
+      border: 2px solid var(--orange);
+      color: var(--orange);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 900;
+      transform: rotate(-3deg);
+    }
+    .ticket-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 24px 0 28px;
+    }
+    .ticket {
+      background: var(--paper);
+      border: 1px dashed #d6c8ad;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 82px;
+      position: relative;
+      break-inside: avoid;
+    }
+    .ticket span { display: block; color: var(--muted); font-size: 0.76rem; font-weight: 800; }
+    .ticket strong { display: block; margin-top: 4px; font-size: 1rem; line-height: 1.35; }
+    .ticket:nth-child(2) { border-color: rgba(15, 118, 110, 0.45); background: #f0fdfa; }
+    .ticket:nth-child(3) { border-color: rgba(37, 99, 235, 0.35); background: #eff6ff; }
+    .ticket:nth-child(4) { border-color: rgba(190, 24, 93, 0.32); background: #fdf2f8; }
+    .day {
+      margin: 28px 0;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.92);
+      break-before: page;
+    }
+    .day-header {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+      break-after: avoid;
+    }
+    .day-label {
+      display: inline-flex;
+      min-height: 64px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: var(--sun);
+      border: 1px solid #facc15;
+      color: #92400e;
+      font-weight: 900;
+    }
+    h2 { margin: 0; font-size: 1.55rem; letter-spacing: 0; }
+    .day-header p { margin: 4px 0 0; color: var(--muted); }
+    .timeline-card {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 14px;
+      margin: 16px 0;
+      break-inside: avoid;
+    }
+    .time-block {
+      border-left: 4px solid var(--orange);
+      padding-left: 10px;
+      color: var(--orange);
+      font-weight: 900;
+    }
+    .time-block span { display: block; font-size: 1rem; }
+    .time-block small { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
+    .body {
+      background: #fff;
+      border: 1px solid #e7e0d1;
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 10px 22px rgba(36, 49, 66, 0.06);
+    }
+    .card-heading { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+    .type { margin: 0; color: var(--teal); font-size: 0.78rem; font-weight: 900; }
+    h3 { margin: 0; font-size: 1.18rem; line-height: 1.35; }
+    .place-photo {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin: 2px 0 12px;
+      background: #e5e7eb;
+      border: 1px solid #f1f5f9;
+    }
+    ul { margin: 0; padding-left: 18px; color: #334155; }
+    li + li { margin-top: 3px; }
+    blockquote {
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border: 1px solid #fed7aa;
+      border-left: 4px solid var(--orange);
+      border-radius: 8px;
+      background: #fff7ed;
+      color: #374151;
+    }
+    .memo-box {
+      margin-top: 22px;
+      padding: 14px;
+      border: 1px dashed #c7b99d;
+      border-radius: 8px;
+      background: linear-gradient(#fff 0 0) padding-box;
+      break-inside: avoid;
+    }
+    .memo-box h3 { font-size: 1rem; margin-bottom: 10px; color: var(--rose); }
+    .memo-lines {
+      height: 96px;
+      background: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, #e7e0d1 28px);
+    }
+    .appendix {
+      margin: 28px 0;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      break-before: page;
+    }
+    .appendix h2 { margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; text-align: left; vertical-align: top; }
+    th { color: var(--muted); background: #f8fafc; }
+    .keepsake {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .keepsake div {
+      min-height: 110px;
+      border: 1px dashed #c7b99d;
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      background: #fffdf8;
+    }
+    a { color: #0f766e; overflow-wrap: anywhere; }
     @media (max-width: 560px) {
-      main { padding: 22px 12px 44px; }
-      h1 { font-size: 1.75rem; }
+      main { padding: 14px 10px 44px; }
+      .cover { grid-template-columns: 1fr; min-height: 0; }
+      .cover-copy { padding: 24px; }
+      .cover-photo { min-height: 220px; }
+      h1 { font-size: 2rem; }
+      .ticket-grid { grid-template-columns: 1fr 1fr; }
+      .day { padding: 16px; }
+      .day-header { grid-template-columns: 1fr; gap: 10px; }
       .timeline-card { grid-template-columns: 1fr; gap: 6px; }
-      .time { padding: 0; }
+      .time-block { border-left: 0; border-bottom: 3px solid var(--orange); padding: 0 0 6px; }
+      .keepsake { grid-template-columns: 1fr; }
     }
     @media print {
       body { background: #fff; }
       main { max-width: none; padding: 0; }
       a { color: inherit; }
+      .cover, .day, .appendix { box-shadow: none; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>${escapeHtml(trip.meta.title)}</h1>
-      <p>${escapeHtml([trip.meta.startDate, trip.meta.endDate].filter(Boolean).join(' - '))}</p>
-    </header>
-    <section class="summary">
-      <strong>行程摘要</strong>
-      <span>天數：${trip.days.length} 天</span>
-      <span>景點：${trip.days.reduce((count, day) => count + day.items.length, 0)} 個已確認景點</span>
+    <section class="cover">
+      <div class="cover-copy">
+        <div>
+          <span class="kicker">TRAVEL BOOKLET</span>
+          <h1>${escapeHtml(trip.meta.title)}</h1>
+          <p>${escapeHtml(formatDateRange(trip))}</p>
+        </div>
+        <div class="stamp">OFFLINE COPY</div>
+      </div>
+      <div class="cover-photo">
+        ${heroPhoto ? `<img src="${escapeHtml(heroPhoto)}" alt="${escapeHtml(trip.meta.title)}" />` : ''}
+      </div>
+    </section>
+    <section class="ticket-grid" aria-label="行程摘要">
+      <article class="ticket"><span>DATES</span><strong>${escapeHtml(formatDateRange(trip) || '未設定')}</strong></article>
+      <article class="ticket"><span>DAYS</span><strong>${trip.days.length} 天</strong></article>
+      <article class="ticket"><span>ROUTE</span><strong>${escapeHtml(firstDay?.start?.title || '未設定')} → ${escapeHtml(lastDay?.end?.title || '未設定')}</strong></article>
+      <article class="ticket"><span>PLACES</span><strong>${confirmedCount} 個景點</strong></article>
     </section>
     ${dayHtml}
+    <section class="appendix">
+      <h2>Appendix</h2>
+      ${appendixRows ? `
+        <table>
+          <thead><tr><th>Day</th><th>Type</th><th>Name</th><th>PlaceID</th><th>Address</th></tr></thead>
+          <tbody>${appendixRows}</tbody>
+        </table>
+      ` : '<p>目前沒有額外地點備援資訊。</p>'}
+      <section class="keepsake">
+        <div>票根 / 收據</div>
+        <div>紀念章 / 臨時筆記</div>
+      </section>
+    </section>
   </main>
 </body>
 </html>`;
