@@ -241,6 +241,8 @@ buildTripMarkdown(tripData, options)
 
 - A5 旅遊手冊尺度，手機 PDF 閱讀時仍要像一本可翻閱的小冊子。
 - 整體可以比目前網頁版更繽紛，但需避免資訊變難讀。
+- 封面圖使用通用旅行插圖候選，不直接使用目前行程的景點照片。
+- 頁面周圍可散落低干擾旅行小插圖，例如行李、票券、相機、地圖針、拉麵、印章、鑰匙、雲。
 - 航班/交通/住宿資訊可借鏡票券式、章節卡式呈現。
 - 城市或地區介紹可做成一日一小導覽，不只列時間表。
 - 每日行程可保留可手寫感的備註區，用於旅途中補紀錄。
@@ -299,6 +301,7 @@ buildTripMarkdown(tripData, options)
 - [ ] 產生東京 2 日遊 sample Markdown。
 - [x] 建立列印版 preview flow：`TripExportModal` 的「開啟列印版」會用同一份 export data 產出小冊風 HTML。
 - [x] 列印版已套用旅行小冊方向：封面、票券摘要、每日導覽、景點圖片卡、手寫備註區、票根/紀念章附錄區。
+- [x] 新增通用旅行插圖素材 `frontend/public/export-assets/travel-booklet-sheet.png`，並提供 3 個封面候選。
 - [ ] 驗證手機寬度與桌面寬度不重疊。
 - [ ] 交付使用者做美學確認。
 

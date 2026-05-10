@@ -317,10 +317,6 @@ export function buildTripMarkdown(tripData, options = {}) {
   ].filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n');
 }
 
-const getFirstPhoto = (trip) => trip.days
-  .flatMap((day) => [day.start, ...day.items, day.end])
-  .find((point) => point.photoUrl)?.photoUrl || '';
-
 const formatDateRange = (trip) => [trip.meta.startDate, trip.meta.endDate].filter(Boolean).join(' - ');
 
 const renderHtmlPoint = (point, options = {}) => {
@@ -351,10 +347,13 @@ const renderHtmlPoint = (point, options = {}) => {
 
 export function buildTripPrintHtml(tripData, options = {}) {
   const trip = normalizeTripForExport(tripData, options);
-  const heroPhoto = getFirstPhoto(trip);
   const confirmedCount = trip.days.reduce((count, day) => count + day.items.length, 0);
   const firstDay = trip.days[0];
   const lastDay = trip.days[trip.days.length - 1];
+  const assetSheetUrl = options.assetSheetUrl || '/export-assets/travel-booklet-sheet.png';
+  const coverVariant = ['airport', 'train', 'shrine'].includes(options.coverVariant)
+    ? options.coverVariant
+    : 'airport';
   const dayHtml = trip.days.map((day) => `
     <section class="day">
       <div class="day-header">
@@ -391,11 +390,12 @@ export function buildTripPrintHtml(tripData, options = {}) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(trip.meta.title)}｜離線行程</title>
   <style>
-    :root {
-      color: #243142;
-      background: #f4f7f2;
-      --ink: #243142;
-      --muted: #667085;
+      :root {
+        color: #243142;
+        background: #f4f7f2;
+        --asset-sheet: url("${escapeHtml(assetSheetUrl)}");
+        --ink: #243142;
+        --muted: #667085;
       --paper: #fffdf8;
       --line: #e4dccb;
       --orange: #f97316;
@@ -433,10 +433,16 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .cover p { color: var(--muted); margin: 0; }
     .cover-photo {
       min-height: 100%;
-      background: linear-gradient(135deg, #fed7aa, #bae6fd);
+      background:
+        var(--asset-sheet),
+        linear-gradient(135deg, #fed7aa, #bae6fd);
+      background-size: 342% auto, cover;
+      background-position: left top, center;
+      background-repeat: no-repeat;
       position: relative;
     }
-    .cover-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cover-photo.train { background-position: center top, center; }
+    .cover-photo.shrine { background-position: right top, center; }
     .cover-photo::after {
       content: "";
       position: absolute;
@@ -474,6 +480,16 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .ticket:nth-child(2) { border-color: rgba(15, 118, 110, 0.45); background: #f0fdfa; }
     .ticket:nth-child(3) { border-color: rgba(37, 99, 235, 0.35); background: #eff6ff; }
     .ticket:nth-child(4) { border-color: rgba(190, 24, 93, 0.32); background: #fdf2f8; }
+    .doodle-strip {
+      height: 108px;
+      margin: -6px 0 20px;
+      background-image: var(--asset-sheet);
+      background-size: 100% auto;
+      background-position: center bottom;
+      background-repeat: no-repeat;
+      opacity: 0.92;
+      break-inside: avoid;
+    }
     .day {
       margin: 28px 0;
       padding: 22px;
@@ -481,7 +497,39 @@ export function buildTripPrintHtml(tripData, options = {}) {
       border-radius: 8px;
       background: rgba(255, 253, 248, 0.92);
       break-before: page;
+      position: relative;
+      overflow: hidden;
     }
+    .day::before,
+    .day::after {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      pointer-events: none;
+      background-image: var(--asset-sheet);
+      background-repeat: no-repeat;
+      opacity: 0.16;
+      filter: saturate(0.9);
+    }
+    .day::before {
+      right: -22px;
+      top: 74px;
+      width: 140px;
+      height: 110px;
+      background-size: 720px auto;
+      background-position: 57% 93%;
+      transform: rotate(8deg);
+    }
+    .day::after {
+      left: -18px;
+      bottom: 22px;
+      width: 160px;
+      height: 106px;
+      background-size: 760px auto;
+      background-position: 4% 93%;
+      transform: rotate(-6deg);
+    }
+    .day > * { position: relative; z-index: 1; }
     .day-header {
       display: grid;
       grid-template-columns: 96px 1fr;
@@ -603,6 +651,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       .cover-photo { min-height: 220px; }
       h1 { font-size: 2rem; }
       .ticket-grid { grid-template-columns: 1fr 1fr; }
+      .doodle-strip { height: 72px; }
       .day { padding: 16px; }
       .day-header { grid-template-columns: 1fr; gap: 10px; }
       .timeline-card { grid-template-columns: 1fr; gap: 6px; }
@@ -628,9 +677,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
         </div>
         <div class="stamp">OFFLINE COPY</div>
       </div>
-      <div class="cover-photo">
-        ${heroPhoto ? `<img src="${escapeHtml(heroPhoto)}" alt="${escapeHtml(trip.meta.title)}" />` : ''}
-      </div>
+      <div class="cover-photo ${coverVariant}" aria-label="travel booklet cover art"></div>
     </section>
     <section class="ticket-grid" aria-label="行程摘要">
       <article class="ticket"><span>DATES</span><strong>${escapeHtml(formatDateRange(trip) || '未設定')}</strong></article>
@@ -638,6 +685,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       <article class="ticket"><span>ROUTE</span><strong>${escapeHtml(firstDay?.start?.title || '未設定')} → ${escapeHtml(lastDay?.end?.title || '未設定')}</strong></article>
       <article class="ticket"><span>PLACES</span><strong>${confirmedCount} 個景點</strong></article>
     </section>
+    <div class="doodle-strip" aria-hidden="true"></div>
     ${dayHtml}
     <section class="appendix">
       <h2>Appendix</h2>

@@ -229,4 +229,5 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
   - end row: `dayConfigs[day].endNotes`
 - Transport wording uses "from previous stop to this stop". Renderer field name is `transportFromPreviousMins`.
 - If a regular place has `photo_url`, Markdown exports `![place name](photo_url)` when `includeImages` is true. Print HTML uses the same URL for magazine-like place images. Missing photos produce no placeholder.
+- Print cover art does not use trip place photos. It uses the generated static asset `frontend/public/export-assets/travel-booklet-sheet.png`, with `coverVariant` options `airport`, `train`, and `shrine`. The same sheet also supplies subtle travel doodles around print pages.
 - v1 PDF is produced by browser print; do not add a backend PDF engine unless a later task explicitly changes this scope.
