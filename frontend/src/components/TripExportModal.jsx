@@ -105,10 +105,16 @@ export default function TripExportModal({
       includeImages,
       validationWarnings,
     });
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setError('瀏覽器阻擋了列印版分頁，請允許彈出視窗或改用下載 .md。');
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setStatusMessage('已開啟列印版分頁，可使用瀏覽器列印或另存 PDF。');
   };
 
   return (
