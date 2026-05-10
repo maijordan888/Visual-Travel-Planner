@@ -126,6 +126,29 @@ export const BOOKLET_STYLE_OPTIONS = [
     sideRightPosition: '83% 92%',
   },
   {
+    id: 'anime-taisho',
+    label: '動漫風',
+    asset: 'travel-theme-anime.png',
+    accent: '#b45309',
+    teal: '#4c5f8f',
+    sky: '#5b4b8a',
+    rose: '#a8557a',
+    paper: '#fffaf1',
+    pageBg: '#eee7f4',
+    dayBg: 'rgba(255, 250, 241, 0.95)',
+    cardBg: '#fffdf8',
+    timelineLine: 'rgba(91, 75, 138, 0.42)',
+    line: 'rgba(91, 75, 138, 0.22)',
+    ticketBase: '#fff7ea',
+    subtleBase: '#f8f0fb',
+    stampColor: '#5b4b8a',
+    timeColor: '#b45309',
+    coverPosition: 'center top',
+    stripPosition: 'center 96%',
+    sideLeftPosition: '9% 92%',
+    sideRightPosition: '78% 92%',
+  },
+  {
     id: 'neon-night',
     label: '夜城市',
     asset: 'travel-theme-neon.png',
@@ -397,6 +420,15 @@ const renderTripSummary = (trip) => {
   return lines.join('\n');
 };
 
+const renderTripMemoMarkdown = (memo) => {
+  const text = cleanText(memo);
+  if (!text) return '';
+  return [
+    '## 旅途中記一筆',
+    text,
+  ].join('\n\n');
+};
+
 const renderDaySection = (day, options = {}) => [
   `## Day ${day.dayNumber}${day.date ? ` - ${day.date}` : ''}`,
   renderTimelineItem(day.start, options),
@@ -431,6 +463,7 @@ export function buildTripMarkdown(tripData, options = {}) {
   return [
     renderCover(trip),
     renderTripSummary(trip),
+    renderTripMemoMarkdown(options.tripMemo),
     ...trip.days.map((day) => renderDaySection(day, options)),
     renderAppendix(trip),
   ].filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n');
@@ -471,6 +504,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
   const lastDay = trip.days[trip.days.length - 1];
   const bookletStyle = getBookletStyle(options.bookletStyle);
   const assetSheetUrl = resolveBookletAssetUrl(bookletStyle, options);
+  const tripMemo = cleanText(options.tripMemo);
   const pageBackground = bookletStyle.darkBackdrop
     ? `
         radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.42) 0 1.3px, transparent 1.7px),
@@ -506,10 +540,6 @@ export function buildTripPrintHtml(tripData, options = {}) {
       ${renderHtmlPoint(day.start, options)}
       ${day.items.map((item) => renderHtmlPoint(item, options)).join('')}
       ${renderHtmlPoint(day.end, options)}
-      <section class="memo-box">
-        <h3>旅途中記一筆</h3>
-        <div class="memo-lines"></div>
-      </section>
     </section>
   `).join('');
   const appendixRows = trip.appendix.places
@@ -798,6 +828,11 @@ export function buildTripPrintHtml(tripData, options = {}) {
       break-inside: avoid;
     }
     .memo-box h3 { font-size: 1rem; margin-bottom: 10px; color: var(--rose); }
+    .memo-box p {
+      margin: 0;
+      color: var(--ink);
+      white-space: pre-wrap;
+    }
     .memo-lines {
       height: 96px;
       background: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--line) 28px);
@@ -808,11 +843,17 @@ export function buildTripPrintHtml(tripData, options = {}) {
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--card-bg);
+      color: var(--ink);
       break-before: page;
     }
-    .appendix h2 { margin-bottom: 12px; }
+    .appendix h2 { margin-bottom: 12px; color: var(--ink); }
+    .appendix p,
+    .appendix td,
+    .appendix .keepsake div {
+      color: var(--ink);
+    }
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; text-align: left; vertical-align: top; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
     th { color: var(--muted); background: color-mix(in srgb, var(--sky) 8%, var(--subtle-base)); }
     .keepsake {
       margin-top: 18px;
@@ -885,6 +926,12 @@ export function buildTripPrintHtml(tripData, options = {}) {
       <article class="ticket"><span>PLACES</span><strong>${confirmedCount} 個景點</strong></article>
     </section>
     <div class="doodle-strip" aria-hidden="true"></div>
+    ${tripMemo ? `
+      <section class="memo-box trip-memo">
+        <h3>旅途中記一筆</h3>
+        <p>${escapeHtml(tripMemo)}</p>
+      </section>
+    ` : ''}
     ${dayHtml}
     <section class="appendix">
       <h2>Appendix</h2>

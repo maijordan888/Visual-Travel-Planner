@@ -221,7 +221,12 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
   - `normalizeTripForExport(tripData, options)` normalizes current store / imported Sheet trip data into `meta`, `days`, and `appendix`.
   - `buildTripMarkdown(tripData, options)` returns a Markdown string for offline reading.
   - `buildTripPrintHtml(tripData, options)` returns a self-contained HTML print view for browser "Save as PDF".
+  - HTML preview is served through `/export-preview`: the modal writes generated HTML into `sessionStorage`, then navigates to `/export-preview` or `/export-preview?print=1`. This avoids popup and `blob:` URL restrictions in Codex's in-app browser.
+  - Users can toggle `新視窗開啟` in `TripExportModal` to open `/export-preview` in a separate tab/window for style comparison; blocked popups fall back to the current tab.
+  - When changing print/booklet themes, check text color for the whole document, especially appendix tables, memo boxes, links, empty states, and dark themes.
 - `TripExportModal` is the v1 UI entry for offline export. It supports current-screen export, optional `GET /sheets/import/{trip_id}` refresh, Markdown preview, copy, `.md` download, opening the HTML booklet view, and a second-step print/PDF action using the same HTML.
+- `TripExportModal` groups export controls into data/content, style, and output action sections. The style picker is collapsed by default and expands to thumbnail options. `tripMemo` is an optional user-entered memo rendered into Markdown/HTML only when filled.
+- The export modal uses a fixed header plus a scrollable `.trip-export-body`, and the collapsed style picker is a large artwork preview card rather than a compact select.
 - Export data treats every day as a full route: `start`, confirmed `regular` nodes, and `end`. This differs from `node_count`, which still counts only confirmed regular景點.
 - Notes mapping:
   - start row: `dayConfigs[day].startNotes`
@@ -229,5 +234,6 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
   - end row: `dayConfigs[day].endNotes`
 - Transport wording uses "from previous stop to this stop". Renderer field name is `transportFromPreviousMins`.
 - If a regular place has `photo_url`, Markdown exports `![place name](photo_url)` when `includeImages` is true. Print HTML uses the same URL for magazine-like place images. Missing photos produce no placeholder.
-- Print cover art does not use trip place photos. It uses generated static assets under `frontend/public/export-assets/` and selects an overall `bookletStyle`, not a single cover image. Current styles are `japan-cute`, `airport-minimal`, `retro-rail`, `coastal-weekend`, and `neon-night`; each style controls the cover art, palette, doodle strip, and fixed side decorations in the desktop print preview.
+- Print cover art does not use trip place photos. It uses generated static assets under `frontend/public/export-assets/` and selects an overall `bookletStyle`, not a single cover image. Current styles are `japan-cute`, `airport-minimal`, `retro-rail`, `coastal-weekend`, `anime-taisho`, and `neon-night`; each style controls the cover art, palette, doodle strip, and fixed side decorations in the desktop print preview.
+- Adding or changing booklet styles should use `.agent/skills/trip-export-style-builder/SKILL.md`; the detailed reusable style contract lives in that skill's `references/style-contract.md`.
 - v1 PDF is produced by browser print; do not add a backend PDF engine unless a later task explicitly changes this scope.

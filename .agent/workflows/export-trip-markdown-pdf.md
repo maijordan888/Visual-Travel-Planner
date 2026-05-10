@@ -56,11 +56,27 @@ description: 從前端匯出離線 Markdown 行程，並用瀏覽器列印成 PD
 ## 列印版風格
 
 - `TripExportModal` 的列印版選項是整體風格，不是單張封面。
-- 目前可選：和風手帳、清爽機場、復古鐵道、海岸週末、夜城市。
+- 目前可選：和風手帳、清爽機場、復古鐵道、海岸週末、動漫風、夜城市。
 - 風格會同時影響封面圖、色票、頁面背景、插圖分隔帶與桌面版左右側固定裝飾。
+- 新增或調整風格時，先使用 `.agent/skills/trip-export-style-builder/SKILL.md`，依照該 skill 的 style contract 建立資產、style object、預覽檢查與文件更新。
 
 ## HTML / PDF 兩段式輸出
 
 - 一般閱讀先按「開啟 HTML」，會開啟同一份旅行手冊 HTML 頁，可在 Codex 或瀏覽器直接預覽。
 - 需要 PDF 時再按「列印 / PDF」，會開同一份 HTML 並觸發瀏覽器列印流程，使用者可另存 PDF。
 - Markdown、HTML 預覽與 PDF 列印頁都使用同一份 normalized export data。
+## Export preview implementation note
+
+- `開啟 HTML` stores the generated booklet HTML in `sessionStorage` and navigates the current tab to `/export-preview`.
+- This avoids popup and `blob:` URL restrictions in the Codex in-app browser.
+- `列印 / PDF` uses the same `/export-preview?print=1` route and triggers browser print from that preview page.
+- When adding or changing print styles, verify dark themes in all sections, including appendix tables, memo boxes, links, and empty-state text.
+- `新視窗開啟` lets users open `/export-preview` in a separate tab/window for side-by-side style comparison; if the browser blocks the popup, the app falls back to the current tab.
+
+## Export modal layout note
+
+- `TripExportModal` groups controls into three blocks: data/content options, print style selection, and output actions. Keep same-purpose action buttons at a consistent width.
+- Print style selection is a collapsed dropdown by default. When opened, it should show style thumbnails and labels so users can compare the visual direction before opening HTML.
+- The collapsed style selector is intentionally a large preview card: label on top, larger artwork below. Do not shrink it back to a compact single-line select unless the export modal layout changes again.
+- Header stays fixed while `.trip-export-body` scrolls internally, so Markdown preview remains reachable even when controls take more vertical space.
+- The booklet memo is user-entered in the export modal through `tripMemo`. It is rendered into Markdown and HTML only when filled; do not render blank handwriting boxes as placeholders.

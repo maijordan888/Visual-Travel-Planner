@@ -14,9 +14,11 @@
 ├── knowledge/             ← 「知道什麼」—— 目前主要技術知識庫
 │   └── travel-planner-logic/
 │       └── PROJECT_KNOWLEDGE.md ← 核心：技術棧、資料模型、API、坑點紀錄
-├── skills/                ← 舊版技能文件區；目前保留作歷史參考，內容可能落後
-│   └── travel-planner-logic/
-│       └── SKILL.md       ← Legacy：不要當成最新單一真相來源
+├── skills/                ← 可重複使用的 Agent 技能；部分舊檔僅供歷史參考
+│   ├── travel-planner-logic/
+│   │   └── SKILL.md       ← Legacy：不要當成最新單一真相來源
+│   └── trip-export-style-builder/
+│       └── SKILL.md       ← 新增/調整離線匯出 Markdown/HTML 風格時使用
 ├── workflows/             ← 「怎麼做」—— UI 操作的具體步驟腳本（給 Agent 執行用）
 │   ├── delete-day.md
 │   ├── explore-and-add-place.md
@@ -45,7 +47,7 @@
 | **讀者** | 需要了解架構才能開發的工程師或 Agent | 需要執行特定 UI 操作的 Agent |
 | **更新時機** | 架構、API、Store 有任何異動時 **必須** 同步更新 | UI 操作流程改變時更新 |
 
-> **簡單記法**：Knowledge = 「know-how（知識）」，Workflows = 「how-to（步驟）」。`skills/` 目前是舊版知識文件，除非特別整理，後續 Agent 應優先相信 `knowledge/`。
+> **簡單記法**：Knowledge = 「know-how（知識）」，Workflows = 「how-to（步驟）」。`skills/` 放可重複使用的 Agent 技能；若技能內容與 `knowledge/` 衝突，仍以 `knowledge/` 的架構契約為準。
 
 ---
 
@@ -55,6 +57,7 @@
 2. **`knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md`** — 建立技術背景知識（架構/資料模型/坑點）
 3. **`todos/QA_REPORT.md`** — 確認目前已知問題與待辦項目
 4. **對應 `workflows/*.md`** — 若需要執行特定 UI 操作，再查找對應 workflow
+5. **對應 `skills/*/SKILL.md`** — 若任務是可重複製作流程（例如新增匯出風格），再讀相關 skill
 
 > 若只需要執行單一 workflow（例如使用者說「幫我加入一個景點」），可直接跳到步驟 4，但仍建議先讀 `PROJECT_KNOWLEDGE.md` 的核心數據模型章節。
 
@@ -66,3 +69,4 @@
 - **UI 操作流程改變後**：更新對應的 `workflows/*.md`
 - **新增待辦或 Bug**：記錄到 `todos/QA_REPORT.md`
 - **新的操作流程**：在 `workflows/` 新增對應的 `.md` 文件
+- **新的可重複製作流程**：在 `skills/` 新增或更新對應 skill，並把細節放到 `references/`

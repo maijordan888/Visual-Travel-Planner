@@ -1,0 +1,4 @@
+interface:
+  display_name: "Trip Export Style Builder"
+  short_description: "Add reusable Markdown/HTML export booklet styles for travel_ai."
+  default_prompt: "Use this skill to add or adjust a travel_ai offline export style. Follow the renderer, asset, modal, documentation, and QA checklist before finishing."

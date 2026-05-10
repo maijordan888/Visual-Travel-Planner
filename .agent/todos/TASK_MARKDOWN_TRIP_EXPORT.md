@@ -293,17 +293,17 @@ buildTripMarkdown(tripData, options)
 
 - [x] 新增 `frontend/src/export/tripExport.js`，包含 `normalizeTripForExport()`、`buildTripMarkdown()`、`buildTripPrintHtml()`。
 - [x] 新增模板元素函式：cover、summary、day section、timeline item、transport、notes、appendix、place image。
-- [ ] 補上 sample data，優先使用東京 2 日遊結構。
-- [ ] 撰寫單元測試或 lightweight fixture test，確認 Markdown 內容正確。
+- [x] 以行程庫既有行程資料驗證 Markdown / HTML 內容輸出。
+- [ ] 尚未新增 automated unit test；目前以前端 build 與 browser QA 驗證。
 
 ### Phase 3: Sample Preview
 
-- [ ] 產生東京 2 日遊 sample Markdown。
+- [x] 以行程庫既有行程產生 Markdown / HTML 預覽。
 - [x] 建立列印版 preview flow：`TripExportModal` 的「開啟列印版」會用同一份 export data 產出小冊風 HTML。
 - [x] 列印版已套用旅行小冊方向：封面、票券摘要、每日導覽、景點圖片卡、手寫備註區、票根/紀念章附錄區。
-- [x] 新增通用旅行插圖素材，並改為選擇整體 `bookletStyle`，不是單張封面；目前包含 `japan-cute`、`airport-minimal`、`retro-rail`、`coastal-weekend`、`neon-night`。
-- [ ] 驗證手機寬度與桌面寬度不重疊。
-- [ ] 交付使用者做美學確認。
+- [x] 新增通用旅行插圖素材，並改為選擇整體 `bookletStyle`，不是單張封面；目前包含 `japan-cute`、`airport-minimal`、`retro-rail`、`coastal-weekend`、`anime-taisho`、`neon-night`。
+- [x] 驗證桌面預覽不重疊，並調整寬螢幕側邊背景與風格配色。
+- [x] 已交付使用者做美學確認並依回饋調整。
 
 ### Phase 4: UI Integration
 

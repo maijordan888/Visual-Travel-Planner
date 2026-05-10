@@ -17,6 +17,7 @@ import {
   buildTripMarkdown,
   buildTripPrintHtml,
 } from '../export/tripExport';
+import { TRIP_EXPORT_PREVIEW_STORAGE_KEY } from './TripExportPreview';
 import './TripExportModal.css';
 
 const makeFilename = (title, extension) => {
@@ -52,16 +53,24 @@ export default function TripExportModal({
   const [statusMessage, setStatusMessage] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [includeImages, setIncludeImages] = useState(true);
+  const [openInNewWindow, setOpenInNewWindow] = useState(false);
   const [bookletStyle, setBookletStyle] = useState(BOOKLET_STYLE_OPTIONS[0].id);
+  const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
+  const [tripMemo, setTripMemo] = useState('');
   const [copied, setCopied] = useState(false);
 
   const activeTrip = sourceTrip || currentTrip;
   const title = activeTrip?.meta?.tripTitle || '未命名行程';
+  const selectedStyle = BOOKLET_STYLE_OPTIONS.find((option) => option.id === bookletStyle)
+    || BOOKLET_STYLE_OPTIONS[0];
+  const sourceLabel = sourceTrip ? '雲端最新資料' : '目前畫面資料';
+
   const markdown = useMemo(() => buildTripMarkdown(activeTrip, {
     source: sourceTrip ? 'sheet' : 'current',
     includeImages,
+    tripMemo,
     validationWarnings,
-  }), [activeTrip, includeImages, sourceTrip, validationWarnings]);
+  }), [activeTrip, includeImages, sourceTrip, tripMemo, validationWarnings]);
 
   if (!isOpen) return null;
 
@@ -80,7 +89,7 @@ export default function TripExportModal({
       onImported?.(tripData);
       setStatusMessage(
         issues.length
-          ? `已載入雲端資料，但有 ${issues.length} 個檢查提醒。`
+          ? `已載入雲端資料，另有 ${issues.length} 個提醒需要確認。`
           : '已載入雲端最新資料。'
       );
     } catch (err) {
@@ -105,34 +114,47 @@ export default function TripExportModal({
     downloadTextFile(makeFilename(title, 'md'), markdown, 'text/markdown;charset=utf-8');
   };
 
-  const handleOpenPrintView = (autoPrint = false) => {
-    const html = buildTripPrintHtml(activeTrip, {
-      source: sourceTrip ? 'sheet' : 'current',
-      includeImages,
-      validationWarnings,
-      bookletStyle,
-      assetBaseUrl: `${window.location.origin}/export-assets`,
-    });
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      setError('瀏覽器阻擋了列印版分頁，請允許彈出視窗或改用下載 .md。');
-      return;
+  const buildPrintHtml = () => buildTripPrintHtml(activeTrip, {
+    source: sourceTrip ? 'sheet' : 'current',
+    includeImages,
+    tripMemo,
+    validationWarnings,
+    bookletStyle,
+    assetBaseUrl: `${window.location.origin}/export-assets`,
+  });
+
+  const openPreview = (html, shouldPrint = false) => {
+    sessionStorage.setItem(TRIP_EXPORT_PREVIEW_STORAGE_KEY, html);
+    const previewUrl = `/export-preview${shouldPrint ? '?print=1' : ''}`;
+
+    if (openInNewWindow) {
+      const previewWindow = window.open(previewUrl, '_blank');
+      if (previewWindow) {
+        previewWindow.focus();
+        setStatusMessage(
+          shouldPrint
+            ? '已在新視窗開啟列印版，請用瀏覽器列印另存 PDF。'
+            : '已在新視窗開啟 HTML。'
+        );
+        return;
+      }
+      setStatusMessage('瀏覽器阻擋新視窗，已改在目前視窗開啟。');
     }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    if (autoPrint) {
-      printWindow.setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-      }, 600);
-    }
-    setStatusMessage(
-      autoPrint
-        ? '已開啟 HTML 並啟動列印流程，可另存成 PDF。'
-        : '已開啟 HTML 行程頁，可直接在瀏覽器閱讀。'
-    );
+
+    window.location.assign(previewUrl);
+  };
+
+  const handleOpenHtmlView = () => {
+    openPreview(buildPrintHtml());
+  };
+
+  const handleOpenPrintView = () => {
+    openPreview(buildPrintHtml(), true);
+  };
+
+  const handleSelectStyle = (styleId) => {
+    setBookletStyle(styleId);
+    setIsStyleMenuOpen(false);
   };
 
   return (
@@ -151,86 +173,148 @@ export default function TripExportModal({
           </button>
         </header>
 
-        <section className="trip-export-actions">
-          <button className="btn outline" onClick={handleImportLatest} disabled={isImporting}>
-            {isImporting ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
-            先載入雲端最新
-          </button>
-          <label className="trip-export-toggle">
-            <input
-              type="checkbox"
-              checked={includeImages}
-              onChange={(event) => setIncludeImages(event.target.checked)}
-            />
-            顯示景點縮圖
-          </label>
-          <div className="trip-style-options" aria-label="列印版風格">
-            {BOOKLET_STYLE_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`trip-style-option ${bookletStyle === option.id ? 'active' : ''}`}
-                style={{ '--theme-sheet': `url(/export-assets/${option.asset})` }}
-                onClick={() => setBookletStyle(option.id)}
-                aria-pressed={bookletStyle === option.id}
-              >
-                <span aria-hidden="true" />
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <button className="btn outline" onClick={handleCopy}>
-            {copied ? <Check size={16} /> : <Clipboard size={16} />}
-            {copied ? '已複製' : '複製 Markdown'}
-          </button>
-          <button className="btn outline" onClick={handleDownloadMarkdown}>
-            <Download size={16} />
-            下載 .md
-          </button>
-          <button className="btn primary" onClick={() => handleOpenPrintView(false)}>
-            <FileCode2 size={16} />
-            開啟 HTML
-          </button>
-          <button className="btn outline" onClick={() => handleOpenPrintView(true)}>
-            <Printer size={16} />
-            列印 / PDF
-          </button>
-        </section>
+        <div className="trip-export-body">
+          <section className="trip-export-controls" aria-label="匯出設定">
+            <div className="trip-export-control-group">
+              <div className="trip-export-group-heading">
+                <span>資料與內容</span>
+                <small>來源：{sourceLabel}</small>
+              </div>
+              <div className="trip-export-control-row">
+                <button className="btn primary trip-export-control-btn" onClick={handleImportLatest} disabled={isImporting}>
+                  {isImporting ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+                  先載入雲端最新
+                </button>
+                <label className="trip-export-toggle">
+                  <input
+                    type="checkbox"
+                    checked={includeImages}
+                    onChange={(event) => setIncludeImages(event.target.checked)}
+                  />
+                  顯示景點縮圖
+                </label>
+                <label className="trip-export-toggle">
+                  <input
+                    type="checkbox"
+                    checked={openInNewWindow}
+                    onChange={(event) => setOpenInNewWindow(event.target.checked)}
+                  />
+                  新視窗開啟
+                </label>
+              </div>
+              <label className="trip-export-memo">
+                <span>旅途備註</span>
+                <textarea
+                  value={tripMemo}
+                  onChange={(event) => setTripMemo(event.target.value)}
+                  rows={3}
+                  placeholder="可以輸入想放進離線文件的提醒、集合資訊、臨時備註。沒填就不輸出這個區塊。"
+                />
+              </label>
+            </div>
 
-        {error && (
-          <div className="trip-export-alert error">
-            <AlertTriangle size={16} />
-            {error}
-          </div>
-        )}
-        {statusMessage && !error && (
-          <div className="trip-export-alert success">{statusMessage}</div>
-        )}
-        {validationWarnings.length > 0 && (
-          <div className="trip-export-alert warning">
-            <AlertTriangle size={16} />
-            <div>
-              <strong>雲端資料有 {validationWarnings.length} 個提醒</strong>
-              <ul>
-                {validationWarnings.slice(0, 4).map((issue, index) => (
-                  <li key={`${issue.row || 'meta'}-${issue.field || index}`}>
-                    {issue.row ? `Row ${issue.row} · ` : ''}
-                    {issue.field ? `${issue.field}: ` : ''}
-                    {issue.issue || issue.message || JSON.stringify(issue)}
-                  </li>
-                ))}
-              </ul>
+          <div className="trip-export-control-group">
+            <div className="trip-export-group-heading">
+              <span>列印版風格</span>
+              <small>{selectedStyle.label}</small>
+            </div>
+            <div className="trip-style-select">
+              <button
+                type="button"
+                className="trip-style-select-trigger"
+                onClick={() => setIsStyleMenuOpen((value) => !value)}
+                aria-expanded={isStyleMenuOpen}
+                aria-controls="trip-style-menu"
+              >
+                <span
+                  className="trip-style-preview"
+                  style={{ '--theme-sheet': `url(/export-assets/${selectedStyle.asset})` }}
+                  aria-hidden="true"
+                />
+                <span className="trip-style-name">{selectedStyle.label}</span>
+                <span className="trip-style-caret" aria-hidden="true">⌄</span>
+              </button>
+              {isStyleMenuOpen && (
+                <div className="trip-style-options" id="trip-style-menu" aria-label="列印版風格">
+                  {BOOKLET_STYLE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`trip-style-option ${bookletStyle === option.id ? 'active' : ''}`}
+                      style={{ '--theme-sheet': `url(/export-assets/${option.asset})` }}
+                      onClick={() => handleSelectStyle(option.id)}
+                      aria-pressed={bookletStyle === option.id}
+                    >
+                      <span aria-hidden="true" />
+                      <strong>{option.label}</strong>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
 
-        <section className="trip-export-preview">
-          <div className="trip-export-preview-heading">
-            <h3>Markdown 預覽</h3>
-            <span>{sourceTrip ? '來源：雲端最新資料' : '來源：目前畫面資料'}</span>
+          <div className="trip-export-control-group">
+            <div className="trip-export-group-heading">
+              <span>輸出動作</span>
+              <small>HTML 可先預覽，PDF 由瀏覽器列印產生</small>
+            </div>
+            <div className="trip-export-control-row action-row">
+              <button className="btn primary trip-export-action-btn" onClick={handleCopy}>
+                {copied ? <Check size={16} /> : <Clipboard size={16} />}
+                {copied ? '已複製' : '複製 Markdown'}
+              </button>
+              <button className="btn primary trip-export-action-btn" onClick={handleDownloadMarkdown}>
+                <Download size={16} />
+                下載 .md
+              </button>
+              <button className="btn primary trip-export-action-btn" onClick={handleOpenHtmlView}>
+                <FileCode2 size={16} />
+                開啟 HTML
+              </button>
+              <button className="btn primary trip-export-action-btn" onClick={handleOpenPrintView}>
+                <Printer size={16} />
+                列印 / PDF
+              </button>
+            </div>
           </div>
-          <pre>{markdown}</pre>
-        </section>
+          </section>
+
+          {error && (
+            <div className="trip-export-alert error">
+              <AlertTriangle size={16} />
+              {error}
+            </div>
+          )}
+          {statusMessage && !error && (
+            <div className="trip-export-alert success">{statusMessage}</div>
+          )}
+          {validationWarnings.length > 0 && (
+            <div className="trip-export-alert warning">
+              <AlertTriangle size={16} />
+              <div>
+                <strong>雲端資料有 {validationWarnings.length} 個提醒</strong>
+                <ul>
+                  {validationWarnings.slice(0, 4).map((issue, index) => (
+                    <li key={`${issue.row || 'meta'}-${issue.field || index}`}>
+                      {issue.row ? `Row ${issue.row}：` : ''}
+                      {issue.field ? `${issue.field}: ` : ''}
+                      {issue.issue || issue.message || JSON.stringify(issue)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <section className="trip-export-preview">
+            <div className="trip-export-preview-heading">
+              <h3>Markdown 預覽</h3>
+              <span>來源：{sourceLabel}</span>
+            </div>
+            <pre>{markdown}</pre>
+          </section>
+        </div>
       </div>
     </div>
   );
