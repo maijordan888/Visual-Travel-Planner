@@ -301,7 +301,7 @@ buildTripMarkdown(tripData, options)
 - [ ] 產生東京 2 日遊 sample Markdown。
 - [x] 建立列印版 preview flow：`TripExportModal` 的「開啟列印版」會用同一份 export data 產出小冊風 HTML。
 - [x] 列印版已套用旅行小冊方向：封面、票券摘要、每日導覽、景點圖片卡、手寫備註區、票根/紀念章附錄區。
-- [x] 新增通用旅行插圖素材 `frontend/public/export-assets/travel-booklet-sheet.png`，並提供 3 個封面候選。
+- [x] 新增通用旅行插圖素材，並改為選擇整體 `bookletStyle`，不是單張封面；目前包含 `japan-cute`、`airport-minimal`、`retro-rail`、`coastal-weekend`、`neon-night`。
 - [ ] 驗證手機寬度與桌面寬度不重疊。
 - [ ] 交付使用者做美學確認。
 

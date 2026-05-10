@@ -44,6 +44,94 @@ const escapeHtml = (value) => cleanText(value)
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#39;');
 
+export const BOOKLET_STYLE_OPTIONS = [
+  {
+    id: 'japan-cute',
+    label: '和風手帳',
+    asset: 'travel-booklet-sheet.png',
+    accent: '#f97316',
+    teal: '#0f766e',
+    sky: '#2563eb',
+    rose: '#be185d',
+    paper: '#fffdf8',
+    pageBg: '#f4f7f2',
+    coverPosition: 'left top',
+    stripPosition: 'center 96%',
+    sideLeftPosition: '4% 92%',
+    sideRightPosition: '82% 92%',
+  },
+  {
+    id: 'airport-minimal',
+    label: '清爽機場',
+    asset: 'travel-theme-airport.png',
+    accent: '#ef6c4d',
+    teal: '#0f6f78',
+    sky: '#2f6f95',
+    rose: '#b85d4f',
+    paper: '#fffefa',
+    pageBg: '#eef6f4',
+    coverPosition: 'left top',
+    stripPosition: 'center 96%',
+    sideLeftPosition: '2% 92%',
+    sideRightPosition: '78% 92%',
+  },
+  {
+    id: 'retro-rail',
+    label: '復古鐵道',
+    asset: 'travel-theme-rail.png',
+    accent: '#a8552a',
+    teal: '#3f6f45',
+    sky: '#2f5f83',
+    rose: '#8f3f2b',
+    paper: '#fff8e8',
+    pageBg: '#f8efd9',
+    coverPosition: 'center top',
+    stripPosition: 'center 96%',
+    sideLeftPosition: '18% 92%',
+    sideRightPosition: '67% 92%',
+  },
+  {
+    id: 'coastal-weekend',
+    label: '海岸週末',
+    asset: 'travel-theme-coastal.png',
+    accent: '#ef7d32',
+    teal: '#087f8c',
+    sky: '#0284c7',
+    rose: '#d75f51',
+    paper: '#fffef8',
+    pageBg: '#eef9f7',
+    coverPosition: 'right top',
+    stripPosition: 'center 96%',
+    sideLeftPosition: '8% 92%',
+    sideRightPosition: '83% 92%',
+  },
+  {
+    id: 'neon-night',
+    label: '夜城市',
+    asset: 'travel-theme-neon.png',
+    accent: '#f59e0b',
+    teal: '#06b6d4',
+    sky: '#8b5cf6',
+    rose: '#ec4899',
+    paper: '#fffaf0',
+    pageBg: '#f3f1ff',
+    coverPosition: 'left top',
+    stripPosition: 'center 96%',
+    sideLeftPosition: '8% 92%',
+    sideRightPosition: '77% 92%',
+  },
+];
+
+const getBookletStyle = (styleId) => (
+  BOOKLET_STYLE_OPTIONS.find((style) => style.id === styleId) || BOOKLET_STYLE_OPTIONS[0]
+);
+
+const resolveBookletAssetUrl = (style, options = {}) => {
+  if (options.styleAssetUrl) return options.styleAssetUrl;
+  const baseUrl = options.assetBaseUrl || '/export-assets';
+  return `${baseUrl.replace(/\/$/, '')}/${style.asset}`;
+};
+
 const getNodeTitle = (node) => cleanText(
   node?.selected_place_name
     || node?.name
@@ -350,10 +438,8 @@ export function buildTripPrintHtml(tripData, options = {}) {
   const confirmedCount = trip.days.reduce((count, day) => count + day.items.length, 0);
   const firstDay = trip.days[0];
   const lastDay = trip.days[trip.days.length - 1];
-  const assetSheetUrl = options.assetSheetUrl || '/export-assets/travel-booklet-sheet.png';
-  const coverVariant = ['airport', 'train', 'shrine'].includes(options.coverVariant)
-    ? options.coverVariant
-    : 'airport';
+  const bookletStyle = getBookletStyle(options.bookletStyle);
+  const assetSheetUrl = resolveBookletAssetUrl(bookletStyle, options);
   const dayHtml = trip.days.map((day) => `
     <section class="day">
       <div class="day-header">
@@ -396,12 +482,12 @@ export function buildTripPrintHtml(tripData, options = {}) {
         --asset-sheet: url("${escapeHtml(assetSheetUrl)}");
         --ink: #243142;
         --muted: #667085;
-      --paper: #fffdf8;
+      --paper: ${bookletStyle.paper};
       --line: #e4dccb;
-      --orange: #f97316;
-      --teal: #0f766e;
-      --sky: #2563eb;
-      --rose: #be185d;
+      --orange: ${bookletStyle.accent};
+      --teal: ${bookletStyle.teal};
+      --sky: ${bookletStyle.sky};
+      --rose: ${bookletStyle.rose};
       --sun: #fef3c7;
     }
     * { box-sizing: border-box; }
@@ -410,13 +496,55 @@ export function buildTripPrintHtml(tripData, options = {}) {
       font-family: "Inter", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
       line-height: 1.6;
       background:
-        radial-gradient(circle at 18px 18px, rgba(15, 118, 110, 0.13) 0 1.4px, transparent 1.6px),
-        radial-gradient(circle at 58px 58px, rgba(249, 115, 22, 0.12) 0 1.2px, transparent 1.5px),
+        linear-gradient(115deg, rgba(255, 247, 237, 0.9) 0 18%, transparent 18% 100%),
+        linear-gradient(295deg, rgba(224, 242, 254, 0.72) 0 16%, transparent 16% 100%),
+        radial-gradient(circle at 22px 22px, rgba(15, 118, 110, 0.16) 0 1.7px, transparent 1.9px),
+        radial-gradient(circle at 60px 60px, rgba(249, 115, 22, 0.14) 0 1.4px, transparent 1.7px),
+        repeating-linear-gradient(0deg, rgba(199, 185, 157, 0.08) 0 1px, transparent 1px 34px),
+        repeating-linear-gradient(90deg, rgba(199, 185, 157, 0.07) 0 1px, transparent 1px 34px),
         linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent 42%),
-        linear-gradient(180deg, #f4f7f2, #fffaf0 54%, #f7fbff);
-      background-size: 76px 76px, 92px 92px, auto, auto;
+        linear-gradient(180deg, ${bookletStyle.pageBg}, #fffaf0 54%, #f7fbff);
+      background-size: auto, auto, 96px 96px, 112px 112px, auto, auto, auto, auto;
+      min-height: 100vh;
     }
-    main { max-width: 820px; margin: 0 auto; padding: 28px 16px 56px; }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: 0;
+      pointer-events: none;
+      background-image: var(--asset-sheet);
+      background-repeat: no-repeat;
+      border: 0;
+      border-radius: 8px;
+      opacity: 0.22;
+      filter: saturate(0.95);
+    }
+    body::before {
+      width: 300px;
+      height: 210px;
+      left: max(18px, calc((100vw - 1040px) / 2 - 280px));
+      top: 18vh;
+      background-size: 1280px auto;
+      background-position: ${bookletStyle.sideLeftPosition};
+      transform: rotate(-8deg);
+    }
+    body::after {
+      width: 320px;
+      height: 220px;
+      right: max(18px, calc((100vw - 1040px) / 2 - 292px));
+      bottom: 8vh;
+      background-size: 1320px auto;
+      background-position: ${bookletStyle.sideRightPosition};
+      transform: rotate(7deg);
+    }
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 28px 18px 64px;
+    }
     .cover {
       min-height: 420px;
       border: 1px solid var(--line);
@@ -437,12 +565,10 @@ export function buildTripPrintHtml(tripData, options = {}) {
         var(--asset-sheet),
         linear-gradient(135deg, #fed7aa, #bae6fd);
       background-size: 342% auto, cover;
-      background-position: left top, center;
+      background-position: ${bookletStyle.coverPosition}, center;
       background-repeat: no-repeat;
       position: relative;
     }
-    .cover-photo.train { background-position: center top, center; }
-    .cover-photo.shrine { background-position: right top, center; }
     .cover-photo::after {
       content: "";
       position: absolute;
@@ -484,12 +610,12 @@ export function buildTripPrintHtml(tripData, options = {}) {
       height: 132px;
       margin: -2px 0 22px;
       background-image:
-        linear-gradient(rgba(255, 253, 248, 0.82), rgba(255, 253, 248, 0.82)),
+        linear-gradient(rgba(255, 253, 248, 0.58), rgba(255, 253, 248, 0.58)),
         var(--asset-sheet);
-      background-size: 100% 100%, 92% auto;
-      background-position: center, center 96%;
+      background-size: 100% 100%, 96% auto;
+      background-position: center, ${bookletStyle.stripPosition};
       background-repeat: no-repeat;
-      opacity: 0.92;
+      opacity: 1;
       break-inside: avoid;
     }
     .day {
@@ -664,8 +790,17 @@ export function buildTripPrintHtml(tripData, options = {}) {
       .time-block { border-left: 0; border-bottom: 3px solid var(--orange); padding: 0 0 6px; }
       .keepsake { grid-template-columns: 1fr; }
     }
+    @media (max-width: 1280px) {
+      body::before,
+      body::after {
+        opacity: 0.12;
+        transform: none;
+      }
+    }
     @media print {
       body { background: #fff; }
+      body::before,
+      body::after { display: none; }
       main { max-width: none; padding: 0; }
       a { color: inherit; }
       .cover, .day, .appendix { box-shadow: none; }
@@ -683,7 +818,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
         </div>
         <div class="stamp">OFFLINE COPY</div>
       </div>
-      <div class="cover-photo ${coverVariant}" aria-label="travel booklet cover art"></div>
+      <div class="cover-photo" aria-label="travel booklet cover art"></div>
     </section>
     <section class="ticket-grid" aria-label="行程摘要">
       <article class="ticket"><span>DATES</span><strong>${escapeHtml(formatDateRange(trip) || '未設定')}</strong></article>

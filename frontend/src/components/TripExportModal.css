@@ -85,7 +85,7 @@
   accent-color: var(--primary);
 }
 
-.trip-cover-options {
+.trip-style-options {
   display: inline-flex;
   align-items: stretch;
   gap: 8px;
@@ -95,8 +95,8 @@
   background: rgba(255, 255, 255, 0.68);
 }
 
-.trip-cover-option {
-  width: 78px;
+.trip-style-option {
+  width: 82px;
   min-height: 58px;
   padding: 6px;
   border: 1px solid transparent;
@@ -111,26 +111,18 @@
   font-weight: 800;
 }
 
-.trip-cover-option span {
+.trip-style-option span {
   width: 52px;
   height: 32px;
   border-radius: 5px;
-  background-image: url('/export-assets/travel-booklet-sheet.png');
+  background-image: var(--theme-sheet);
   background-size: 342% auto;
   background-position: left top;
   background-repeat: no-repeat;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
-.trip-cover-option.train span {
-  background-position: center top;
-}
-
-.trip-cover-option.shrine span {
-  background-position: right top;
-}
-
-.trip-cover-option.active {
+.trip-style-option.active {
   border-color: var(--primary);
   color: var(--primary-hover);
   background: #fff7ed;
@@ -240,17 +232,17 @@
 
   .trip-export-actions .btn,
   .trip-export-toggle,
-  .trip-cover-options {
+  .trip-style-options {
     width: 100%;
     justify-content: center;
   }
 
-  .trip-cover-options {
+  .trip-style-options {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .trip-cover-option {
+  .trip-style-option {
     width: 100%;
   }
 }

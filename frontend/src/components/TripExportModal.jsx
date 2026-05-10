@@ -11,7 +11,11 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../api';
-import { buildTripMarkdown, buildTripPrintHtml } from '../export/tripExport';
+import {
+  BOOKLET_STYLE_OPTIONS,
+  buildTripMarkdown,
+  buildTripPrintHtml,
+} from '../export/tripExport';
 import './TripExportModal.css';
 
 const makeFilename = (title, extension) => {
@@ -47,7 +51,7 @@ export default function TripExportModal({
   const [statusMessage, setStatusMessage] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [includeImages, setIncludeImages] = useState(true);
-  const [coverVariant, setCoverVariant] = useState('airport');
+  const [bookletStyle, setBookletStyle] = useState(BOOKLET_STYLE_OPTIONS[0].id);
   const [copied, setCopied] = useState(false);
 
   const activeTrip = sourceTrip || currentTrip;
@@ -105,8 +109,8 @@ export default function TripExportModal({
       source: sourceTrip ? 'sheet' : 'current',
       includeImages,
       validationWarnings,
-      coverVariant,
-      assetSheetUrl: `${window.location.origin}/export-assets/travel-booklet-sheet.png`,
+      bookletStyle,
+      assetBaseUrl: `${window.location.origin}/export-assets`,
     });
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -149,18 +153,15 @@ export default function TripExportModal({
             />
             顯示景點縮圖
           </label>
-          <div className="trip-cover-options" aria-label="選擇封面插圖">
-            {[
-              { id: 'airport', label: '機場' },
-              { id: 'train', label: '電車' },
-              { id: 'shrine', label: '街景' },
-            ].map((option) => (
+          <div className="trip-style-options" aria-label="列印版風格">
+            {BOOKLET_STYLE_OPTIONS.map((option) => (
               <button
                 key={option.id}
                 type="button"
-                className={`trip-cover-option ${option.id} ${coverVariant === option.id ? 'active' : ''}`}
-                onClick={() => setCoverVariant(option.id)}
-                aria-pressed={coverVariant === option.id}
+                className={`trip-style-option ${bookletStyle === option.id ? 'active' : ''}`}
+                style={{ '--theme-sheet': `url(/export-assets/${option.asset})` }}
+                onClick={() => setBookletStyle(option.id)}
+                aria-pressed={bookletStyle === option.id}
               >
                 <span aria-hidden="true" />
                 {option.label}
