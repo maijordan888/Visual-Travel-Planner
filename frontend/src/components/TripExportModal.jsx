@@ -7,7 +7,6 @@ import {
   FileCode2,
   FileText,
   Loader2,
-  Printer,
   RefreshCw,
   X,
 } from 'lucide-react';
@@ -123,19 +122,15 @@ export default function TripExportModal({
     assetBaseUrl: `${window.location.origin}/export-assets`,
   });
 
-  const openPreview = (html, shouldPrint = false) => {
+  const openPreview = (html) => {
     sessionStorage.setItem(TRIP_EXPORT_PREVIEW_STORAGE_KEY, html);
-    const previewUrl = `/export-preview${shouldPrint ? '?print=1' : ''}`;
+    const previewUrl = '/export-preview';
 
     if (openInNewWindow) {
       const previewWindow = window.open(previewUrl, '_blank');
       if (previewWindow) {
         previewWindow.focus();
-        setStatusMessage(
-          shouldPrint
-            ? '已在新視窗開啟列印版，請用瀏覽器列印另存 PDF。'
-            : '已在新視窗開啟 HTML。'
-        );
+        setStatusMessage('已在新視窗開啟 HTML。');
         return;
       }
       setStatusMessage('瀏覽器阻擋新視窗，已改在目前視窗開啟。');
@@ -148,8 +143,8 @@ export default function TripExportModal({
     openPreview(buildPrintHtml());
   };
 
-  const handleOpenPrintView = () => {
-    openPreview(buildPrintHtml(), true);
+  const handleDownloadHtml = () => {
+    downloadTextFile(makeFilename(title, 'html'), buildPrintHtml(), 'text/html;charset=utf-8');
   };
 
   const handleSelectStyle = (styleId) => {
@@ -166,7 +161,7 @@ export default function TripExportModal({
               <FileText size={20} />
               <h2>匯出行程</h2>
             </div>
-            <p>產生可離線閱讀的 Markdown，並可用瀏覽器列印成 PDF。</p>
+            <p>產生可離線閱讀的 Markdown 與 HTML 行程手冊。</p>
           </div>
           <button className="trip-export-icon-btn" onClick={onClose} aria-label="關閉匯出視窗">
             <X size={18} />
@@ -257,7 +252,7 @@ export default function TripExportModal({
           <div className="trip-export-control-group">
             <div className="trip-export-group-heading">
               <span>輸出動作</span>
-              <small>HTML 可先預覽，PDF 由瀏覽器列印產生</small>
+              <small>HTML 可預覽，也可下載成單檔保存</small>
             </div>
             <div className="trip-export-control-row action-row">
               <button className="btn primary trip-export-action-btn" onClick={handleCopy}>
@@ -272,9 +267,9 @@ export default function TripExportModal({
                 <FileCode2 size={16} />
                 開啟 HTML
               </button>
-              <button className="btn primary trip-export-action-btn" onClick={handleOpenPrintView}>
-                <Printer size={16} />
-                列印 / PDF
+              <button className="btn primary trip-export-action-btn" onClick={handleDownloadHtml}>
+                <Download size={16} />
+                下載 HTML
               </button>
             </div>
           </div>

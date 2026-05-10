@@ -12,14 +12,6 @@ export default function TripExportPreview() {
     document.open();
     document.write(html);
     document.close();
-
-    const shouldPrint = new URLSearchParams(window.location.search).get('print') === '1';
-    if (shouldPrint) {
-      window.setTimeout(() => {
-        window.focus();
-        window.print();
-      }, 600);
-    }
   }, [html]);
 
   if (!html) {
