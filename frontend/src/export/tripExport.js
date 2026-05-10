@@ -54,7 +54,10 @@ export const BOOKLET_STYLE_OPTIONS = [
     sky: '#2563eb',
     rose: '#be185d',
     paper: '#fffdf8',
-    pageBg: '#f4f7f2',
+    pageBg: '#edf5ec',
+    dayBg: 'rgba(255, 253, 248, 0.94)',
+    cardBg: '#ffffff',
+    timelineLine: 'rgba(249, 115, 22, 0.78)',
     coverPosition: 'left top',
     stripPosition: 'center 96%',
     sideLeftPosition: '4% 92%',
@@ -69,7 +72,10 @@ export const BOOKLET_STYLE_OPTIONS = [
     sky: '#2f6f95',
     rose: '#b85d4f',
     paper: '#fffefa',
-    pageBg: '#eef6f4',
+    pageBg: '#e2f0ee',
+    dayBg: 'rgba(255, 254, 250, 0.95)',
+    cardBg: '#ffffff',
+    timelineLine: 'rgba(239, 108, 77, 0.7)',
     coverPosition: 'left top',
     stripPosition: 'center 96%',
     sideLeftPosition: '2% 92%',
@@ -79,12 +85,15 @@ export const BOOKLET_STYLE_OPTIONS = [
     id: 'retro-rail',
     label: '復古鐵道',
     asset: 'travel-theme-rail.png',
-    accent: '#a8552a',
+    accent: '#9b6b45',
     teal: '#3f6f45',
     sky: '#2f5f83',
     rose: '#8f3f2b',
     paper: '#fff8e8',
-    pageBg: '#f8efd9',
+    pageBg: '#f1e4c8',
+    dayBg: 'rgba(255, 248, 232, 0.95)',
+    cardBg: '#fffdf7',
+    timelineLine: 'rgba(126, 88, 57, 0.38)',
     coverPosition: 'center top',
     stripPosition: 'center 96%',
     sideLeftPosition: '18% 92%',
@@ -99,7 +108,10 @@ export const BOOKLET_STYLE_OPTIONS = [
     sky: '#0284c7',
     rose: '#d75f51',
     paper: '#fffef8',
-    pageBg: '#eef9f7',
+    pageBg: '#e1f7f5',
+    dayBg: 'rgba(255, 254, 248, 0.95)',
+    cardBg: '#ffffff',
+    timelineLine: 'rgba(239, 125, 50, 0.72)',
     coverPosition: 'right top',
     stripPosition: 'center 96%',
     sideLeftPosition: '8% 92%',
@@ -114,7 +126,10 @@ export const BOOKLET_STYLE_OPTIONS = [
     sky: '#8b5cf6',
     rose: '#ec4899',
     paper: '#fffaf0',
-    pageBg: '#f3f1ff',
+    pageBg: '#ece7ff',
+    dayBg: 'rgba(255, 250, 240, 0.95)',
+    cardBg: '#fffefa',
+    timelineLine: 'rgba(245, 158, 11, 0.72)',
     coverPosition: 'left top',
     stripPosition: 'center 96%',
     sideLeftPosition: '8% 92%',
@@ -489,6 +504,9 @@ export function buildTripPrintHtml(tripData, options = {}) {
       --sky: ${bookletStyle.sky};
       --rose: ${bookletStyle.rose};
       --sun: #fef3c7;
+      --day-bg: ${bookletStyle.dayBg};
+      --card-bg: ${bookletStyle.cardBg};
+      --timeline-line: ${bookletStyle.timelineLine};
     }
     * { box-sizing: border-box; }
     body {
@@ -603,9 +621,9 @@ export function buildTripPrintHtml(tripData, options = {}) {
     }
     .ticket span { display: block; color: var(--muted); font-size: 0.76rem; font-weight: 800; }
     .ticket strong { display: block; margin-top: 4px; font-size: 1rem; line-height: 1.35; }
-    .ticket:nth-child(2) { border-color: rgba(15, 118, 110, 0.45); background: #f0fdfa; }
-    .ticket:nth-child(3) { border-color: rgba(37, 99, 235, 0.35); background: #eff6ff; }
-    .ticket:nth-child(4) { border-color: rgba(190, 24, 93, 0.32); background: #fdf2f8; }
+    .ticket:nth-child(2) { border-color: color-mix(in srgb, var(--teal) 48%, #fff); background: color-mix(in srgb, var(--teal) 10%, #fff); }
+    .ticket:nth-child(3) { border-color: color-mix(in srgb, var(--sky) 42%, #fff); background: color-mix(in srgb, var(--sky) 9%, #fff); }
+    .ticket:nth-child(4) { border-color: color-mix(in srgb, var(--rose) 38%, #fff); background: color-mix(in srgb, var(--rose) 8%, #fff); }
     .doodle-strip {
       height: 132px;
       margin: -2px 0 22px;
@@ -623,7 +641,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       padding: 22px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: rgba(255, 253, 248, 0.92);
+      background: var(--day-bg);
       break-before: page;
       position: relative;
       overflow: hidden;
@@ -695,7 +713,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       break-inside: avoid;
     }
     .time-block {
-      border-left: 4px solid var(--orange);
+      border-left: 4px solid var(--timeline-line);
       padding-left: 10px;
       color: var(--orange);
       font-weight: 900;
@@ -703,7 +721,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .time-block span { display: block; font-size: 1rem; }
     .time-block small { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
     .body {
-      background: #fff;
+      background: var(--card-bg);
       border: 1px solid #e7e0d1;
       border-radius: 8px;
       padding: 14px;
