@@ -40,6 +40,13 @@ const downloadTextFile = (filename, content, type) => {
   URL.revokeObjectURL(url);
 };
 
+const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(blob);
+});
+
 export default function TripExportModal({
   isOpen,
   onClose,
@@ -113,13 +120,14 @@ export default function TripExportModal({
     downloadTextFile(makeFilename(title, 'md'), markdown, 'text/markdown;charset=utf-8');
   };
 
-  const buildPrintHtml = () => buildTripPrintHtml(activeTrip, {
+  const buildPrintHtml = (overrides = {}) => buildTripPrintHtml(activeTrip, {
     source: sourceTrip ? 'sheet' : 'current',
     includeImages,
     tripMemo,
     validationWarnings,
     bookletStyle,
     assetBaseUrl: `${window.location.origin}/export-assets`,
+    ...overrides,
   });
 
   const openPreview = (html) => {
@@ -143,8 +151,25 @@ export default function TripExportModal({
     openPreview(buildPrintHtml());
   };
 
-  const handleDownloadHtml = () => {
-    downloadTextFile(makeFilename(title, 'html'), buildPrintHtml(), 'text/html;charset=utf-8');
+  const handleDownloadHtml = async () => {
+    setError('');
+    try {
+      const assetResponse = await fetch(`/export-assets/${selectedStyle.asset}`);
+      if (!assetResponse.ok) throw new Error('無法載入 HTML 風格資產');
+      const styleAssetUrl = await blobToDataUrl(await assetResponse.blob());
+      downloadTextFile(
+        makeFilename(title, 'html'),
+        buildPrintHtml({ styleAssetUrl }),
+        'text/html;charset=utf-8'
+      );
+      setStatusMessage(
+        includeImages
+          ? '已下載 HTML。手冊風格圖可離線顯示；景點縮圖若來自 Google，離線時可能需要網路。'
+          : '已下載可離線閱讀的 HTML。'
+      );
+    } catch (err) {
+      setError(err.message || '下載 HTML 失敗');
+    }
   };
 
   const handleSelectStyle = (styleId) => {
@@ -210,7 +235,7 @@ export default function TripExportModal({
 
           <div className="trip-export-control-group">
             <div className="trip-export-group-heading">
-              <span>列印版風格</span>
+              <span>HTML 手冊風格</span>
               <small>{selectedStyle.label}</small>
             </div>
             <div className="trip-style-select">
@@ -230,7 +255,7 @@ export default function TripExportModal({
                 <span className="trip-style-caret" aria-hidden="true">⌄</span>
               </button>
               {isStyleMenuOpen && (
-                <div className="trip-style-options" id="trip-style-menu" aria-label="列印版風格">
+                <div className="trip-style-options" id="trip-style-menu" aria-label="HTML 手冊風格">
                   {BOOKLET_STYLE_OPTIONS.map((option) => (
                     <button
                       key={option.id}

@@ -6,10 +6,10 @@ This reference is for adding or changing offline export booklet styles in `trave
 
 - `frontend/src/export/tripExport.js`
   - `BOOKLET_STYLE_OPTIONS`: style ids, labels, asset names, palette tokens, image positioning, dark-theme flags.
-  - `buildTripPrintHtml()`: HTML structure and CSS variables for the print booklet.
+  - `buildTripPrintHtml()`: HTML structure and CSS variables for the offline booklet.
   - `buildTripMarkdown()`: Markdown text export; normally style-independent.
 - `frontend/public/export-assets/`
-  - Static generated artwork used by print HTML and style selector thumbnails.
+  - Static generated artwork used by HTML preview/download and style selector thumbnails.
 - `frontend/src/components/TripExportModal.jsx`
   - Style selector state and style option rendering.
 - `frontend/src/components/TripExportModal.css`
@@ -73,7 +73,7 @@ Add these for dark styles:
 Suggested prompt shape for generated assets:
 
 ```text
-Wide watercolor travel stationery collage sheet, [theme], multiple small travel illustrations with generous safe margins, clean off-white/transparent-feeling background, no text, no logos, no people, printable editorial booklet asset, high detail, soft paper texture.
+Wide watercolor travel stationery collage sheet, [theme], multiple small travel illustrations with generous safe margins, clean off-white/transparent-feeling background, no text, no logos, no people, offline editorial booklet asset, high detail, soft paper texture.
 ```
 
 After generation:
@@ -87,7 +87,7 @@ After generation:
 1. Pick a unique `id` and Traditional Chinese `label`.
 2. Add the static asset under `frontend/public/export-assets/`.
 3. Add the style object to `BOOKLET_STYLE_OPTIONS`.
-4. Tune CSS variables through style object values before changing the global print CSS.
+4. Tune CSS variables through style object values before changing the global booklet CSS.
 5. Use `darkBackdrop: true` only when the whole page should be dark.
 6. If changing modal layout, keep the style picker compact enough for laptop viewports and ensure `.trip-export-body` remains scrollable.
 7. Update the style inventory in project knowledge and workflow docs.
@@ -102,7 +102,8 @@ Open the app and verify:
 - Collapsed style preview is legible and not clipped.
 - Expanded style options are selectable and do not overflow the modal.
 - `開啟 HTML` opens `/export-preview`.
-- `列印 / PDF` opens `/export-preview?print=1` and triggers browser print where supported.
+- `下載 HTML` saves a `.html` file using the same booklet renderer.
+- Downloaded HTML embeds the selected style asset so the cover/doodle artwork still works offline.
 - Desktop HTML preview has useful side decoration and does not feel empty on wide screens.
 - Mobile/narrow preview has no overlapping text or clipped controls.
 - Timeline cards, summary tiles, appendix, memo, links, and empty states have readable text.
@@ -115,14 +116,14 @@ Update `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md` when:
 
 - Adding, removing, or renaming a style id.
 - Changing export route behavior.
-- Changing print/PDF generation scope.
+- Changing offline HTML generation scope.
 - Changing style selection semantics.
 
 Update `.agent/workflows/export-trip-markdown-pdf.md` when:
 
 - User operation steps change.
 - Modal controls move or change names.
-- Preview/print behavior changes.
+- Preview/download behavior changes.
 
 Update this skill when:
 

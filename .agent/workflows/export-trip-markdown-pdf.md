@@ -1,4 +1,4 @@
----
+﻿---
 description: 從前端匯出離線 Markdown 與 HTML 行程手冊。
 ---
 
@@ -26,7 +26,7 @@ description: 從前端匯出離線 Markdown 與 HTML 行程手冊。
 3. 可按「複製 Markdown」將內容複製到剪貼簿。
 4. 可按「下載 .md」下載 Markdown 檔。
 5. 可按「開啟 HTML」開啟同一份旅行手冊 HTML 頁。
-6. 可按「下載 HTML」下載同一份單檔 `.html`，適合手機直接打開閱讀。
+6. 可按「下載 HTML」下載 `.html`，適合手機直接打開閱讀；手冊風格圖會嵌入檔案，景點縮圖若來自遠端 URL 則仍可能需要網路。
 
 ## 先讀取 Google Sheets 最新資料後匯出
 
@@ -41,6 +41,7 @@ description: 從前端匯出離線 Markdown 與 HTML 行程手冊。
 - 「顯示景點縮圖」預設開啟。
 - regular 景點若有 `photo_url`，Markdown 會輸出 `![景點名稱](photo_url)`。
 - HTML 手冊會用同一個 `photo_url` 顯示圖片。
+- 下載 HTML 會嵌入手冊風格圖；景點縮圖仍使用原本 `photo_url`，若要完全不依賴遠端圖片，請關閉「顯示景點縮圖」。
 - 若關閉「顯示景點縮圖」，Markdown 與 HTML 都會輸出純文字版本。
 - 沒有 `photo_url` 的景點不會出現破圖占位。
 
@@ -65,7 +66,7 @@ description: 從前端匯出離線 Markdown 與 HTML 行程手冊。
 
 - `開啟 HTML` stores the generated booklet HTML in `sessionStorage` and navigates the current tab to `/export-preview`.
 - This avoids popup and `blob:` URL restrictions in the Codex in-app browser.
-- `下載 HTML` writes the same generated HTML to a local `.html` file.
+- `下載 HTML` writes the same generated HTML to a local `.html` file and embeds the selected style asset as a data URL for offline cover/doodle artwork.
 - `新視窗開啟` lets users open `/export-preview` in a separate tab/window for side-by-side style comparison; if the browser blocks the popup, the app falls back to the current tab.
 
 ## Export modal layout note

@@ -551,6 +551,8 @@ export function buildTripPrintHtml(tripData, options = {}) {
         <td>${escapeHtml(point.title)}</td>
         <td>${escapeHtml(point.placeId || '')}</td>
         <td>${escapeHtml(point.address || '')}</td>
+        <td>${point.lat ?? ''}</td>
+        <td>${point.lng ?? ''}</td>
       </tr>
     `).join('');
   return `<!doctype html>
@@ -937,7 +939,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
       <h2>Appendix</h2>
       ${appendixRows ? `
         <table>
-          <thead><tr><th>Day</th><th>Type</th><th>Name</th><th>PlaceID</th><th>Address</th></tr></thead>
+          <thead><tr><th>Day</th><th>Type</th><th>Name</th><th>PlaceID</th><th>Address</th><th>lat</th><th>lng</th></tr></thead>
           <tbody>${appendixRows}</tbody>
         </table>
       ` : '<p>目前沒有額外地點備援資訊。</p>'}

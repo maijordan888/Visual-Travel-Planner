@@ -1,6 +1,6 @@
 ﻿---
 name: trip-export-style-builder
-description: Create or modify reusable offline trip export styles for the travel_ai project. Use when adding a new Markdown/HTML/PDF booklet style, changing TripExportModal style selection, generating static travel booklet artwork, tuning print CSS palettes, or validating that export themes render correctly across Markdown preview, HTML preview, and browser print/PDF.
+description: Create or modify reusable offline trip export styles for the travel_ai project. Use when adding a new Markdown/HTML booklet style, changing TripExportModal style selection, generating static travel booklet artwork, tuning booklet CSS palettes, or validating that export themes render correctly across Markdown preview, HTML preview, and downloaded HTML.
 ---
 
 # Trip Export Style Builder
@@ -10,7 +10,7 @@ Use this skill to add or adjust `travel_ai` offline export booklet styles. The o
 ## Workflow
 
 1. Read the project export contract:
-   - `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md`, section `Markdown/PDF Offline Export Contract`
+   - `.agent/knowledge/travel-planner-logic/PROJECT_KNOWLEDGE.md`, section `Markdown/HTML Offline Export Contract`
    - `.agent/workflows/export-trip-markdown-pdf.md`
    - `references/style-contract.md`
 2. Decide the style concept before editing:
@@ -29,7 +29,7 @@ Use this skill to add or adjust `travel_ai` offline export booklet styles. The o
 
 ## Non-Negotiables
 
-- Do not add a backend PDF engine for v1. PDF is produced by browser print from HTML.
+- Do not add a backend PDF engine for v1. Supported offline outputs are Markdown and downloadable HTML.
 - Do not use trip place photos as cover art. Place photos may appear inside timeline items only when `includeImages` is enabled.
 - Do not leave black text on dark themes. Check appendix tables, memo boxes, links, empty states, timeline cards, and metadata tiles.
 - Do not render blank handwriting placeholders. User-entered `tripMemo` appears only when filled.
