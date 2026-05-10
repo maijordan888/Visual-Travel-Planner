@@ -1,4 +1,4 @@
-# .agent — AI Agent 工作區導覽
+﻿# .agent — AI Agent 工作區導覽
 
 > 此目錄是本專案的「AI Agent 工作文件區」。  
 > **工程師或 AI Agent 開始任何任務前，請先閱讀本文件。**
@@ -21,13 +21,18 @@
 │       └── SKILL.md       ← 新增/調整離線匯出 Markdown/HTML 風格時使用
 ├── workflows/             ← 「怎麼做」—— UI 操作的具體步驟腳本（給 Agent 執行用）
 │   ├── delete-day.md
+│   ├── add-place-with-google-placepicker.md
+│   ├── create-trip-by-ui-only.md
 │   ├── explore-and-add-place.md
 │   ├── export-trip-markdown-pdf.md
 │   ├── itinerary-notes-and-day-switching.md
+│   ├── manual-route-time-check.md
 │   ├── open-add-place-ui.md
+│   ├── pending-options-via-ui.md
 │   ├── reset-persistent-data.md
 │   ├── search-and-confirm-place.md
 │   ├── swap-backup-option.md
+│   ├── trip-import-acceptance-check.md
 │   └── trip-library-cloud-sync.md
 └── todos/                 ← 「要做什麼」—— 待辦清單與 QA 報告
     └── QA_REPORT.md
