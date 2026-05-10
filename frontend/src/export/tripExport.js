@@ -135,6 +135,8 @@ export const BOOKLET_STYLE_OPTIONS = [
     line: 'rgba(125, 211, 252, 0.22)',
     ticketBase: '#0b1223',
     subtleBase: '#111a31',
+    stampColor: '#dbeafe',
+    timeColor: '#7dd3fc',
     darkBackdrop: true,
     coverPosition: 'left top',
     stripPosition: 'center 96%',
@@ -538,6 +540,8 @@ export function buildTripPrintHtml(tripData, options = {}) {
       --timeline-line: ${bookletStyle.timelineLine};
       --ticket-base: ${bookletStyle.ticketBase || '#fff'};
       --subtle-base: ${bookletStyle.subtleBase || '#fff'};
+      --stamp-color: ${bookletStyle.stampColor || bookletStyle.accent};
+      --time-color: ${bookletStyle.timeColor || bookletStyle.accent};
     }
     * { box-sizing: border-box; }
     body {
@@ -625,8 +629,8 @@ export function buildTripPrintHtml(tripData, options = {}) {
     }
     .stamp {
       align-self: flex-start;
-      border: 2px solid var(--orange);
-      color: var(--orange);
+      border: 2px solid var(--stamp-color);
+      color: var(--stamp-color);
       border-radius: 999px;
       padding: 8px 14px;
       font-weight: 900;
@@ -743,7 +747,7 @@ export function buildTripPrintHtml(tripData, options = {}) {
     .time-block {
       border-left: 4px solid var(--timeline-line);
       padding-left: 10px;
-      color: var(--orange);
+      color: var(--time-color);
       font-weight: 900;
     }
     .time-block span { display: block; font-size: 1rem; }
