@@ -85,6 +85,28 @@
   accent-color: var(--primary);
 }
 
+.trip-export-stage-actions {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(251, 146, 60, 0.16);
+}
+
+.trip-export-stage-actions .btn {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.trip-export-stage-actions .btn:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.trip-export-stage-actions .btn:last-child {
+  border-radius: 0 8px 8px 0;
+  border-left: 0;
+}
+
 .trip-style-options {
   display: inline-flex;
   align-items: stretch;
@@ -232,9 +254,14 @@
 
   .trip-export-actions .btn,
   .trip-export-toggle,
+  .trip-export-stage-actions,
   .trip-style-options {
     width: 100%;
     justify-content: center;
+  }
+
+  .trip-export-stage-actions .btn {
+    flex: 1;
   }
 
   .trip-style-options {

@@ -58,3 +58,9 @@ description: 從前端匯出離線 Markdown 行程，並用瀏覽器列印成 PD
 - `TripExportModal` 的列印版選項是整體風格，不是單張封面。
 - 目前可選：和風手帳、清爽機場、復古鐵道、海岸週末、夜城市。
 - 風格會同時影響封面圖、色票、頁面背景、插圖分隔帶與桌面版左右側固定裝飾。
+
+## HTML / PDF 兩段式輸出
+
+- 一般閱讀先按「開啟 HTML」，會開啟同一份旅行手冊 HTML 頁，可在 Codex 或瀏覽器直接預覽。
+- 需要 PDF 時再按「列印 / PDF」，會開同一份 HTML 並觸發瀏覽器列印流程，使用者可另存 PDF。
+- Markdown、HTML 預覽與 PDF 列印頁都使用同一份 normalized export data。

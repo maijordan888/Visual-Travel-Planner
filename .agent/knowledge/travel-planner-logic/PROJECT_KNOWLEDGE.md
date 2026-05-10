@@ -221,7 +221,7 @@ node 仍保留 UI 現有欄位（如 `selected_place_id`, `selected_place_name`,
   - `normalizeTripForExport(tripData, options)` normalizes current store / imported Sheet trip data into `meta`, `days`, and `appendix`.
   - `buildTripMarkdown(tripData, options)` returns a Markdown string for offline reading.
   - `buildTripPrintHtml(tripData, options)` returns a self-contained HTML print view for browser "Save as PDF".
-- `TripExportModal` is the v1 UI entry for offline export. It supports current-screen export, optional `GET /sheets/import/{trip_id}` refresh, Markdown preview, copy, `.md` download, and opening the print view.
+- `TripExportModal` is the v1 UI entry for offline export. It supports current-screen export, optional `GET /sheets/import/{trip_id}` refresh, Markdown preview, copy, `.md` download, opening the HTML booklet view, and a second-step print/PDF action using the same HTML.
 - Export data treats every day as a full route: `start`, confirmed `regular` nodes, and `end`. This differs from `node_count`, which still counts only confirmed regular景點.
 - Notes mapping:
   - start row: `dayConfigs[day].startNotes`

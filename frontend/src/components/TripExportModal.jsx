@@ -4,6 +4,7 @@ import {
   Check,
   Clipboard,
   Download,
+  FileCode2,
   FileText,
   Loader2,
   Printer,
@@ -104,7 +105,7 @@ export default function TripExportModal({
     downloadTextFile(makeFilename(title, 'md'), markdown, 'text/markdown;charset=utf-8');
   };
 
-  const handleOpenPrintView = () => {
+  const handleOpenPrintView = (autoPrint = false) => {
     const html = buildTripPrintHtml(activeTrip, {
       source: sourceTrip ? 'sheet' : 'current',
       includeImages,
@@ -121,7 +122,17 @@ export default function TripExportModal({
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    setStatusMessage('已開啟列印版分頁，可使用瀏覽器列印或另存 PDF。');
+    if (autoPrint) {
+      printWindow.setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 600);
+    }
+    setStatusMessage(
+      autoPrint
+        ? '已開啟 HTML 並啟動列印流程，可另存成 PDF。'
+        : '已開啟 HTML 行程頁，可直接在瀏覽器閱讀。'
+    );
   };
 
   return (
@@ -176,9 +187,13 @@ export default function TripExportModal({
             <Download size={16} />
             下載 .md
           </button>
-          <button className="btn primary" onClick={handleOpenPrintView}>
+          <button className="btn primary" onClick={() => handleOpenPrintView(false)}>
+            <FileCode2 size={16} />
+            開啟 HTML
+          </button>
+          <button className="btn outline" onClick={() => handleOpenPrintView(true)}>
             <Printer size={16} />
-            開啟列印版
+            列印 / PDF
           </button>
         </section>
 
