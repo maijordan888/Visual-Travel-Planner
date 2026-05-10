@@ -1,10 +1,11 @@
 ﻿import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { CalendarDays, Cloud, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { CalendarDays, Cloud, FileText, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import ItineraryNode from './components/ItineraryNode';
 import MapModal from './components/MapModal';
 import TripLibraryModal from './components/TripLibraryModal';
+import TripExportModal from './components/TripExportModal';
 import { useTripStore } from './store/useTripStore';
 
 const apiKey =
@@ -48,6 +49,7 @@ export default function App() {
   const dayConfig = dayConfigs[activeDay] || dayConfigs[1];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTripLibraryOpen, setIsTripLibraryOpen] = useState(false);
+  const [isTripExportOpen, setIsTripExportOpen] = useState(false);
   const [isEditingTrip, setIsEditingTrip] = useState(false);
   const [tripDraft, setTripDraft] = useState(null);
   const [tripEditError, setTripEditError] = useState('');
@@ -340,6 +342,9 @@ export default function App() {
           <button className="btn outline sidebar-action" onClick={() => setIsTripLibraryOpen(true)}>
             <Cloud size={16} /> 行程庫
           </button>
+          <button className="btn outline sidebar-action" onClick={() => setIsTripExportOpen(true)}>
+            <FileText size={16} /> 匯出行程
+          </button>
 
           {days.map(day => (
             <div
@@ -614,6 +619,14 @@ export default function App() {
             setSheetLastModified(lastModifiedUtc);
           }
         }}
+        onImported={(tripData) => {
+          loadTripFromArchive(tripData);
+        }}
+      />
+      <TripExportModal
+        isOpen={isTripExportOpen}
+        onClose={() => setIsTripExportOpen(false)}
+        currentTrip={currentTripPayload}
         onImported={(tripData) => {
           loadTripFromArchive(tripData);
         }}
